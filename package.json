@@ -1,0 +1,29 @@
+{
+  "name": "tjs_map",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "parcel index.html",
+    "build": "parcel build --experimental-scope-hoisting --public-url . index.html"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@geoext/geoext": "^3.2.0",
+    "@terrestris/basigx": "^2.0.2",
+    "ol": "^6.4.3"
+  },
+  "devDependencies": {
+    "parcel-bundler": "^1.12.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/schawanji/TJS-Server-demonstrator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/schawanji/TJS-Server-demonstrator/issues"
+  },
+  "homepage": "https://github.com/schawanji/TJS-Server-demonstrator#readme"
+}
