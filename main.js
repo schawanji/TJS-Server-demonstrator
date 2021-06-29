@@ -1,4 +1,4 @@
-import "ol/ol.css";
+//import "ol/ol.css";
 import { Vector } from "ol/source";
 import { GeoJSON } from "ol/format";
 import Map from "ol/Map";
