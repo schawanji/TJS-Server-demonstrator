@@ -117,7 +117,80 @@ parcelRequire = (function (modules, cache, entry, globalName) {
   }
 
   return newRequire;
-})({"node_modules/ol/source/State.js":[function(require,module,exports) {
+})({"node_modules/parcel-bundler/src/builtins/bundle-url.js":[function(require,module,exports) {
+var bundleURL = null;
+
+function getBundleURLCached() {
+  if (!bundleURL) {
+    bundleURL = getBundleURL();
+  }
+
+  return bundleURL;
+}
+
+function getBundleURL() {
+  // Attempt to find the URL of the current script and use that as the base URL
+  try {
+    throw new Error();
+  } catch (err) {
+    var matches = ('' + err.stack).match(/(https?|file|ftp|chrome-extension|moz-extension):\/\/[^)\n]+/g);
+
+    if (matches) {
+      return getBaseURL(matches[0]);
+    }
+  }
+
+  return '/';
+}
+
+function getBaseURL(url) {
+  return ('' + url).replace(/^((?:https?|file|ftp|chrome-extension|moz-extension):\/\/.+)?\/[^/]+(?:\?.*)?$/, '$1') + '/';
+}
+
+exports.getBundleURL = getBundleURLCached;
+exports.getBaseURL = getBaseURL;
+},{}],"node_modules/parcel-bundler/src/builtins/css-loader.js":[function(require,module,exports) {
+var bundle = require('./bundle-url');
+
+function updateLink(link) {
+  var newLink = link.cloneNode();
+
+  newLink.onload = function () {
+    link.remove();
+  };
+
+  newLink.href = link.href.split('?')[0] + '?' + Date.now();
+  link.parentNode.insertBefore(newLink, link.nextSibling);
+}
+
+var cssTimeout = null;
+
+function reloadCSS() {
+  if (cssTimeout) {
+    return;
+  }
+
+  cssTimeout = setTimeout(function () {
+    var links = document.querySelectorAll('link[rel="stylesheet"]');
+
+    for (var i = 0; i < links.length; i++) {
+      if (bundle.getBaseURL(links[i].href) === bundle.getBundleURL()) {
+        updateLink(links[i]);
+      }
+    }
+
+    cssTimeout = null;
+  }, 50);
+}
+
+module.exports = reloadCSS;
+},{"./bundle-url":"node_modules/parcel-bundler/src/builtins/bundle-url.js"}],"node_modules/ol/ol.css":[function(require,module,exports) {
+
+        var reloadCSS = require('_css_loader');
+        module.hot.dispose(reloadCSS);
+        module.hot.accept(reloadCSS);
+      
+},{"_css_loader":"node_modules/parcel-bundler/src/builtins/css-loader.js"}],"node_modules/ol/source/State.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -85542,6 +85615,8 @@ exports.default = _default;
 },{"./BaseVector.js":"node_modules/ol/layer/BaseVector.js","../renderer/canvas/VectorTileLayer.js":"node_modules/ol/renderer/canvas/VectorTileLayer.js","./TileProperty.js":"node_modules/ol/layer/TileProperty.js","./VectorTileRenderType.js":"node_modules/ol/layer/VectorTileRenderType.js","../asserts.js":"node_modules/ol/asserts.js","../obj.js":"node_modules/ol/obj.js"}],"main.js":[function(require,module,exports) {
 "use strict";
 
+require("ol/ol.css");
+
 var _source = require("ol/source");
 
 var _format = require("ol/format");
@@ -85570,7 +85645,6 @@ var _OSM = _interopRequireDefault(require("ol/source/OSM"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-//import "ol/ol.css";
 var style_simple = new _style.Style({
   fill: new _style.Fill({
     color: "#ADD8E6"
@@ -85624,7 +85698,7 @@ var map = new _Map.default({
   layers: [layer],
   target: "map"
 });
-},{"ol/source":"node_modules/ol/source.js","ol/format":"node_modules/ol/format.js","ol/Map":"node_modules/ol/Map.js","ol/View":"node_modules/ol/View.js","ol/layer/Vector":"node_modules/ol/layer/Vector.js","ol/style":"node_modules/ol/style.js","ol/layer/VectorTile":"node_modules/ol/layer/VectorTile.js","ol/source/VectorTile":"node_modules/ol/source/VectorTile.js","ol/format/MVT":"node_modules/ol/format/MVT.js","ol/layer/Layer":"node_modules/ol/layer/Layer.js","ol/proj":"node_modules/ol/proj.js","ol/layer/Tile":"node_modules/ol/layer/Tile.js","ol/source/OSM":"node_modules/ol/source/OSM.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+},{"ol/ol.css":"node_modules/ol/ol.css","ol/source":"node_modules/ol/source.js","ol/format":"node_modules/ol/format.js","ol/Map":"node_modules/ol/Map.js","ol/View":"node_modules/ol/View.js","ol/layer/Vector":"node_modules/ol/layer/Vector.js","ol/style":"node_modules/ol/style.js","ol/layer/VectorTile":"node_modules/ol/layer/VectorTile.js","ol/source/VectorTile":"node_modules/ol/source/VectorTile.js","ol/format/MVT":"node_modules/ol/format/MVT.js","ol/layer/Layer":"node_modules/ol/layer/Layer.js","ol/proj":"node_modules/ol/proj.js","ol/layer/Tile":"node_modules/ol/layer/Tile.js","ol/source/OSM":"node_modules/ol/source/OSM.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
