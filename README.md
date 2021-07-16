@@ -11,12 +11,8 @@ Open Node.js
 
 cd C:\Users\[Name]\TJS-Server-demonstrator
 
-<ul> 
-<li>npm init</li>
-<li>npm install ol</li>
-<li>npm install --save-dev parcel-bundler</li>
-<li>npm start</li>
-
-<ul>
+<pre>
+npm start
+</pre>
 
 Server running at http://localhost:1234

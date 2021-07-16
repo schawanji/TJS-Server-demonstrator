@@ -1,0 +1,1 @@
+{"version":3,"sources":["css/map.css"],"names":[],"mappings":"AAAA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA;AACA","file":"map.1d68ba0f.css","sourceRoot":"..","sourcesContent":["#map {\r\n  height: 580px;\r\n  border: solid 1px;\r\n}\r\n.app{padding: 0px 15px;}\r\n\r\nh1 {\r\n  text-align: center;\r\n  font-size: 32px;\r\n}\r\n"]}

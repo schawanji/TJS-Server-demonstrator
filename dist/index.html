@@ -3,20 +3,36 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/2.2.1/css/bootstrap.min.css">
+
+    <link rel="stylesheet" href="/map.1d68ba0f.css">
     <script src="https://code.jquery.com/jquery-latest.js"></script>
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/2.2.1/js/bootstrap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/2.12/OpenLayers.js"></script>
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/2.2.1/css/bootstrap.min.css">
-    <style>.map {
-        height: 700px;
-        width: 100%;
-        background-color: none;
-      }</style>
-  <link rel="stylesheet" href="/main.1f19ae8e.css"></head>
+  <script src="/map.1d68ba0f.js"></script><link rel="stylesheet" href="/TJS-Server-demonstrator.e31bb0bc.css"></head>
   <body>
-    
-    <div id="map" class="map"></div>
+    <div class="container-fluid">
+      <div class="app">
+        <h1>VTC Table joining service demonstrator</h1>
+        <div class="row">
+          <div class="col-6">
+            <div id="side-bar">
+              <form action="">
+                <input type="file"> or
+                <input type="url" placeholder="Enter URL link to csv data file">
+                and <input type="text" placeholder="Enter FRAMEWORKKEY">
+                <input type="submit" class="btn btn-outline-dark" value="Submit">
+                  
+              </form>
+            </div>
+          </div>
+          <div class="col-6">
+            <div id="map"></div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <script src="/main.1f19ae8e.js"></script>
+    <script src="/TJS-Server-demonstrator.e31bb0bc.js"></script>
   </body>
 </html>

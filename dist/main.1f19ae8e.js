@@ -85645,58 +85645,108 @@ var _OSM = _interopRequireDefault(require("ol/source/OSM"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-var style_simple = new _style.Style({
-  fill: new _style.Fill({
-    color: "#ADD8E6"
+/*var style_simple = new Style({
+  fill: new Fill({
+    color: "#ADD8E6",
   }),
-  stroke: new _style.Stroke({
+  stroke: new Stroke({
     color: "#880000",
-    width: 1
-  })
+    width: 1,
+  }),
 });
 
+var colorGradient = [
+  "rgb(128,128,128)",
+  "rgb(140,81,10)",
+  "rgb(216,179,101)",
+  "rgb(246,232,195)",
+  "rgb(199,234,229)",
+  "rgb(90,180,172)",
+  "rgb(1,102,94)",
+];
+
 function simpleStyle(feature) {
-  return style_simple;
+  var data = feature.get("cases");
+  var color;
+  if (data < 50000) {
+    color = colorGradient[6]; //low value
+  } else if (data >= 50000 && data < 500000) {
+    color = colorGradient[5]; //
+  } else if (data >= 500000 && data < 1000000) {
+    color = colorGradient[4];
+  } else if (data >= 1000000 && data < 3000000) {
+    color = colorGradient[3];
+  } else if (data >= 3000000 && data < 5000000) {
+    color = colorGradient[2];
+  } else if (data >= 5000000) {
+    color = colorGradient[1];
+  } else if ((data = "null")) {
+    color = colorGradient[0];
+  }
+  return new Style({
+    stroke: new Stroke({
+      color: "black", //'rgba(255, 255, 255 ,1.0)',
+      lineDash: [3, 3],
+      lineCap: "butt",
+      lineJoin: "miter",
+      width: 0.5,
+    }),
+    fill: new Fill({
+      color: color,
+    }),
+  });
 }
-/*var url = 'http://127.0.0.1:5000/tjs/api?vtc_url=http://localhost:8080/geoserver/gwc/service/tms/1.0.0/'+
- 'countries%3Ane_110m_admin_0_countries@EPSG%3A3857@geojson/{z}/{x}/{-y}.geojson&'+
- 'attribute_url=http://127.0.0.1:8000/static/sample-csv.csv&'+
- 'framework_key=UN_A3&attribute1=Country_name&attribute2=GDP(2005)'*/
 
+let url =
+  "http://localhost:8080/geoserver/gwc/service/tms/1.0.0/topp%3Astates@EPSG%3A900913@geojson/{z}/{x}/{-y}.geojson";
 
-var url = "http://localhost:8080/geoserver/gwc/service/tms/1.0.0/topp%3Astates@EPSG%3A900913@geojson/{z}/{x}/{-y}.geojson";
-var layer = new _VectorTile.default({
-  //style:simpleStyle,
+let tjs_url =
+  "http://127.0.0.1:5000/tjs/api/joindata?FrameworkURI=http://localhost:8080/geoserver/gwc/service/tms/1.0.0/topp%3Astates@EPSG%3A900913@geojson/{z}/{x}/{-y}.geojson&GetDataURL=https://schawanji.herokuapp.com/static/covid_data.csv&FrameworkKey=state";
+
+const layer = new VectorTileLayer({
   style: simpleStyle,
-  source: new _VectorTile2.default({
+  source: new VectorTileSource({
     attributions: "Made by Sharon",
-    format: new _format.GeoJSON(),
+    format: new GeoJSON(),
     maxZoom: 19,
-    url: url,
-    tileLoadFunction: function tileLoadFunction(tile, url) {
+    url: tjs_url,
+    tileLoadFunction: function (tile, url) {
       tile.setLoader(function (extent, resolution, projection) {
         fetch(url).then(function (response) {
-          console.log(response);
           response.text().then(function (data) {
-            console.log(data);
-            var jsons = JSON.parse(data);
-            var format = tile.getFormat();
-            console.log(data);
+            const jsons = JSON.parse(data);
+            const format = tile.getFormat();
+
             tile.setFeatures(format.readFeatures(data));
           });
         });
       });
-    }
-  })
+    },
+  }),
+});
+
+var map = new Map({
+  view: new View({
+    center: fromLonLat([-95, 40]),
+    zoom: 4,
+  }),
+
+  layers: [layer],
+  target: "map",
+});*/
+var view = new _View.default({
+  center: [-9101767, 2822912],
+  zoom: 14
 });
 var map = new _Map.default({
-  view: new _View.default({
-    //center: [0, 0],
-    center: (0, _proj.fromLonLat)([-75, 42]),
-    zoom: 4
-  }),
-  layers: [layer],
-  target: "map"
+  controls: defaultControls().extend([new FullScreen({
+    source: 'fullscreen'
+  })]),
+  layers: [new _Tile.default({
+    source: new _OSM.default()
+  })],
+  target: 'map',
+  view: view
 });
 },{"ol/ol.css":"node_modules/ol/ol.css","ol/source":"node_modules/ol/source.js","ol/format":"node_modules/ol/format.js","ol/Map":"node_modules/ol/Map.js","ol/View":"node_modules/ol/View.js","ol/layer/Vector":"node_modules/ol/layer/Vector.js","ol/style":"node_modules/ol/style.js","ol/layer/VectorTile":"node_modules/ol/layer/VectorTile.js","ol/source/VectorTile":"node_modules/ol/source/VectorTile.js","ol/format/MVT":"node_modules/ol/format/MVT.js","ol/layer/Layer":"node_modules/ol/layer/Layer.js","ol/proj":"node_modules/ol/proj.js","ol/layer/Tile":"node_modules/ol/layer/Tile.js","ol/source/OSM":"node_modules/ol/source/OSM.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
@@ -85726,7 +85776,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "59393" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "50783" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
