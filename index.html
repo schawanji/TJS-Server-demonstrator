@@ -17,23 +17,59 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/2.12/OpenLayers.js"></script>
   </head>
   <body>
-    <div class="container-fluid">
-      <div class="app">
-        <h1>VTC Table joining service demonstrator</h1>
-        <div class="row">
-          <div class="col-6">
-            <div id="side-bar">
-              <form action="">
-                <input type="file" /> or
-                <input
-                  type="url"
-                  placeholder="Enter URL link to csv data file"
-                />
-                and <input type="text" placeholder="Enter FRAMEWORKKEY" />
-                <input type='submit' class="btn btn-outline-dark" value="Submit"/>
-                  
-              </form>
-            </div>
+    <div class=>
+    <div class="app">
+      <h1>VTC Table joining service demonstrator</h1>
+      <div class="row">
+        <div class="col-6">
+          <div id="side-bar">
+            <form>
+              <input
+                type="url"
+                id="api"
+                class="form-control"
+                placeholder="Enter URL e.g (https://example.tjs/api)"
+                pattern="https://.*"
+                size="30"
+                required
+                value="https://schawanji.herokuapp.com/tjs/api/joindata?"
+              />
+
+              <input
+                type="url"
+                id="framework"
+                class="form-control"
+                placeholder="Enter URL e.g (https://example.geojson)"
+                pattern="https://.*"
+                required
+                size="100"
+                value="https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json"
+              />
+
+              <input
+                type="url"
+                class="form-control"
+                id="attribute"
+                placeholder="Enter URL e.g (https://example.csv)"
+                pattern="https://.*"
+                required
+                value="https://schawanji.herokuapp.com/static/covid_data.csv"
+              />
+
+              <input
+                type="text"
+                class="form-control"
+                id="key"
+                placeholder="Enter Framework Key"
+                value="state"
+              />
+
+              <input
+                type="submit"
+                class="btn btn-secondary"
+                value="Join Data"
+              />
+            </form>
           </div>
           <div class="col-6">
             <div id="map" id="map"></div>
