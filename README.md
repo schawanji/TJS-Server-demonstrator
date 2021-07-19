@@ -1,4 +1,4 @@
-# TJS-Server-demonstrator for <a href="https://github.com/schawanji/TJS-Server">TJS-Server</a>
+# WebMap Application for <a href="https://github.com/schawanji/TJS-Server">TJS-Server</a>
 
 # Requirements
 
