@@ -56757,6 +56757,7 @@ form.addEventListener("submit", function (event) {
   var attributeData = document.querySelector("#attributeurl").value;
   var frameworkKey = document.querySelector("#frameworkkey").value;
   var attributeKey = document.querySelector("#attributekey").value;
+  var layer = document.querySelector("#preference");
   var url = "".concat(tjsUrl, "FrameworkURI=").concat(frameworkData, "&GetDataURL=").concat(attributeData, "&FrameworkKey=").concat(frameworkKey, "&AttributeKey=").concat(attributeKey);
   var vectorLayer = new _Vector.default({
     source: new _Vector2.default({
@@ -56770,6 +56771,7 @@ form.addEventListener("submit", function (event) {
     }
   });
   map.addLayer(vectorLayer);
+  layer.innerHTML = "<div class=\"preference\">\n  <input type=\"checkbox\" name=\"new-layer\" id=\"new-layer\" /><label\n    for=\"new-layer\"\n    >New Layer</label\n  >\n</div>";
 });
 /*const highlightStyle = new Style({
   stroke: new Stroke({
@@ -56863,7 +56865,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "50261" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "55729" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

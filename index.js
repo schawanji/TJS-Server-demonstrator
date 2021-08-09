@@ -54,6 +54,7 @@ form.addEventListener("submit", (event) => {
   let attributeData = document.querySelector("#attributeurl").value;
   let frameworkKey = document.querySelector("#frameworkkey").value;
   let attributeKey = document.querySelector("#attributekey").value;
+  let layer = document.querySelector("#preference");
 
   const url = `${tjsUrl}FrameworkURI=${frameworkData}&GetDataURL=${attributeData}&FrameworkKey=${frameworkKey}&AttributeKey=${attributeKey}`;
 
@@ -69,6 +70,12 @@ form.addEventListener("submit", (event) => {
   });
 
   map.addLayer(vectorLayer);
+  layer.innerHTML = `<div class="preference">
+  <input type="checkbox" name="new-layer" id="new-layer" /><label
+    for="new-layer"
+    >New Layer</label
+  >
+</div>`;
 });
 
 /*const highlightStyle = new Style({

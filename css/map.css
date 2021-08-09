@@ -1,12 +1,12 @@
 body {
-  background: #f8f8f8;
-}
-#map {
-  border: solid 1px white;
-  width: 100%;
-  height: 630px;
+  font-size: 16px;
   margin: 0;
   padding: 0;
+}
+
+#map {
+  width: 100%;
+  height: 380px;
 }
 .ol-attribution li {
   /* display: inline; */
@@ -14,16 +14,19 @@ body {
   font-size: smaller;
 }
 
-.input-group {
-  padding: 0.2rem 0.2rem;
-}
-input {
-  padding: 0.2rem 0.2rem;
+header input {
+  padding: 0.5rem 0.2rem;
   border-radius: 3px;
-  border: 1px solid gray;
+  border: 1px solid rgb(241, 238, 238);
   display: flex;
-  width: 95%;
+  width: 100%;
   max-width: 600px;
+}
+header label {
+  color: black;
+}
+.input-group {
+  padding: 10px 15px;
 }
 
 .credits {
@@ -32,24 +35,45 @@ input {
   margin: 0.5rem auto;
 }
 
-form {
-  padding: 5px 5px;
-}
 @media (min-width: 1000px) {
   form {
-    padding: 5px 5px;
     display: flex;
+    justify-content: s;
+  }
+  .container {
+    display: flex;
+  }
+  main {
+    width: 78%;
+  }
+  aside {
+    width: 20%;
+    margin-top: 1rem;
+    margin-left: 1rem;
+  }
+  .preference {
+    display: flex;
+    width: 60%;
+    justify-content: start;
+    padding: 2rem 2rem;
+  }
+
+  #map {
+    width: 100%;
+    height: 645px;
   }
 }
 
+h1 {
+  margin: 0;
+}
 header {
   font-weight: 700;
-  border: 0;
-  border-radius: 0;
+  background: #F0EFF1;
 }
 .btn {
   color: ivory;
-  background: navy;
+  background: #707070;
   margin-top: 1.25rem;
   text-align: center;
 }
