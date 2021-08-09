@@ -56713,16 +56713,19 @@ var _Tile = _interopRequireDefault(require("ol/layer/Tile"));
 
 var _OSM = _interopRequireDefault(require("ol/source/OSM"));
 
+var _control = require("ol/control");
+
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var map = new _Map.default({
+  controls: (0, _control.defaults)().extend([new _control.FullScreen()]),
   layers: [new _Tile.default({
     source: new _OSM.default()
   })],
   target: "map",
   view: new _View.default({
-    center: [-9101767, 2822912],
-    zoom: 4
+    center: [-9201767, 2922912],
+    zoom: 3
   })
 });
 
@@ -56768,41 +56771,42 @@ form.addEventListener("submit", function (event) {
   });
   map.addLayer(vectorLayer);
 });
-var highlightStyle = new _style2.Style({
-  stroke: new _style2.Stroke({
+/*const highlightStyle = new Style({
+  stroke: new Stroke({
     color: "#f00",
-    width: 1
+    width: 1,
   }),
-  fill: new _style2.Fill({
-    color: "rgba(255,0,0,0.1)"
+  fill: new Fill({
+    color: "rgba(255,0,0,0.1)",
   }),
-  text: new _style2.Text({
+  text: new Text({
     font: "12px Calibri,sans-serif",
-    fill: new _style2.Fill({
-      color: "#000"
+    fill: new Fill({
+      color: "#000",
     }),
-    stroke: new _style2.Stroke({
+    stroke: new Stroke({
       color: "#f00",
-      width: 3
-    })
-  })
+      width: 3,
+    }),
+  }),
 });
-var featureOverlay = new _Vector.default({
-  source: new _Vector2.default(),
+
+const featureOverlay = new VectorLayer({
+  source: new VectorSource(),
   map: map,
-  style: function style(feature) {
+  style: function (feature) {
     highlightStyle.getText().setText(feature.get("name"));
     return highlightStyle;
-  }
+  },
 });
-var highlight;
 
-var displayFeatureInfo = function displayFeatureInfo(pixel) {
-  var feature = map.forEachFeatureAtPixel(pixel, function (feature) {
+let highlight;
+const displayFeatureInfo = function (pixel) {
+  const feature = map.forEachFeatureAtPixel(pixel, function (feature) {
     return feature;
   });
-  var info = document.getElementById("info");
 
+  const info = document.getElementById("info");
   if (feature) {
     info.innerHTML = feature.getId() + ": " + feature.get("name");
   } else {
@@ -56813,11 +56817,9 @@ var displayFeatureInfo = function displayFeatureInfo(pixel) {
     if (highlight) {
       featureOverlay.getSource().removeFeature(highlight);
     }
-
     if (feature) {
       featureOverlay.getSource().addFeature(feature);
     }
-
     highlight = feature;
   }
 };
@@ -56826,14 +56828,14 @@ map.on("pointermove", function (evt) {
   if (evt.dragging) {
     return;
   }
-
-  var pixel = map.getEventPixel(evt.originalEvent);
+  const pixel = map.getEventPixel(evt.originalEvent);
   displayFeatureInfo(pixel);
 });
+
 map.on("click", function (evt) {
   displayFeatureInfo(evt.pixel);
-});
-},{"ol/ol.css":"node_modules/ol/ol.css","ol/format/GeoJSON":"node_modules/ol/format/GeoJSON.js","ol/Map":"node_modules/ol/Map.js","ol/layer/Vector":"node_modules/ol/layer/Vector.js","ol/source/Vector":"node_modules/ol/source/Vector.js","ol/View":"node_modules/ol/View.js","ol/style":"node_modules/ol/style.js","ol/layer/Tile":"node_modules/ol/layer/Tile.js","ol/source/OSM":"node_modules/ol/source/OSM.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+});*/
+},{"ol/ol.css":"node_modules/ol/ol.css","ol/format/GeoJSON":"node_modules/ol/format/GeoJSON.js","ol/Map":"node_modules/ol/Map.js","ol/layer/Vector":"node_modules/ol/layer/Vector.js","ol/source/Vector":"node_modules/ol/source/Vector.js","ol/View":"node_modules/ol/View.js","ol/style":"node_modules/ol/style.js","ol/layer/Tile":"node_modules/ol/layer/Tile.js","ol/source/OSM":"node_modules/ol/source/OSM.js","ol/control":"node_modules/ol/control.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;

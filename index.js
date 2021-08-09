@@ -7,8 +7,11 @@ import View from "ol/View";
 import { Fill, Stroke, Style, Text } from "ol/style";
 import TileLayer from "ol/layer/Tile";
 import OSM from "ol/source/OSM";
+import { FullScreen, defaults as defaultControls } from "ol/control";
 
 const map = new Map({
+  controls: defaultControls().extend([new FullScreen()]),
+
   layers: [
     new TileLayer({
       source: new OSM(),
@@ -16,8 +19,8 @@ const map = new Map({
   ],
   target: "map",
   view: new View({
-    center: [-9101767, 2822912],
-    zoom: 4,
+    center: [-9201767, 2922912],
+    zoom: 3,
   }),
 });
 
@@ -51,7 +54,6 @@ form.addEventListener("submit", (event) => {
   let attributeData = document.querySelector("#attributeurl").value;
   let frameworkKey = document.querySelector("#frameworkkey").value;
   let attributeKey = document.querySelector("#attributekey").value;
-  
 
   const url = `${tjsUrl}FrameworkURI=${frameworkData}&GetDataURL=${attributeData}&FrameworkKey=${frameworkKey}&AttributeKey=${attributeKey}`;
 
@@ -69,7 +71,7 @@ form.addEventListener("submit", (event) => {
   map.addLayer(vectorLayer);
 });
 
-const highlightStyle = new Style({
+/*const highlightStyle = new Style({
   stroke: new Stroke({
     color: "#f00",
     width: 1,
@@ -132,4 +134,4 @@ map.on("pointermove", function (evt) {
 
 map.on("click", function (evt) {
   displayFeatureInfo(evt.pixel);
-});
+});*/
