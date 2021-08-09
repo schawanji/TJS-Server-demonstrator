@@ -13,60 +13,31 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/2.2.1/js/bootstrap.min.js"></script>
 
     <script src="https://kit.fontawesome.com/e140c5afeb.js" crossorigin="anonymous"></script>
-  <script src="/map.1d68ba0f.js"></script><link rel="stylesheet" href="/TJS-Server-demonstrator.e31bb0bc.css"></head>
+  <script src="/map.1d68ba0f.js"></script></head>
   <body>
-    <header>
-      
-      <div class="form">
-        <form id="join-form">
-          <div class="input-group mb-3">
-            <label for="apiurl">TJS API endpoint</label>
-            <input type="url" id="apiurl" name="apiurl" size="30" class="form-control" placeholder="Enter URL e.g (https://example.tjs/api)" pattern="https://.*" required="" value="https://schawanji.herokuapp.com/tjs/api/joindata?">
-          </div>
+    <div class="homepage">
+      <header><h1>Welcome to the TJS implentation demonstator</h1></header>
 
-          <div class="input-group mb-3">
-            <label for="frameworkurl">FrameworkURI</label>
-            <input type="url" id="frameworkurl" name="frameworkurl" size="30" class="form-control" placeholder="Enter URL e.g (https://example.geojson)" pattern="https://.*" required="" value="https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json">
-          </div>
+      <button id="uploaddata">
+        <a href="/tjs-uploaddata.html">Would you like to upload data from local drive ?<br>
+          Click me</a>
+      </button>
 
-          <div class="input-group mb-3">
-            <label for="attributeurl">AttributeURI</label>
-            <input type="url" size="30" class="form-control" id="attributeurl" name="attributeurl" placeholder="Enter URL e.g (https://example.csv)" pattern="https://.*" required="" value="https://schawanji.herokuapp.com/static/covid_data.csv">
-          </div>
-          <div class="input-group mb-3">
-            <label for="frameworkkey">FrameworkKey</label>
-            <input type="text" class="form-control" size="20" id="frameworkkey" name="frameworkkey" placeholder="Enter Framework Key" value="name">
-          </div>
-          <div class="input-group mb-3">
-            <label for="attributekey">AttributeKey</label>
-            <input type="text" class="form-control" size="20" id="attributekey" name="attributekey" placeholder="Enter Attribute Key" value="state">
-          </div>
-          <div class="input-group">
-            <input type="submit" id="addlayer" class="btn" value="Add Layer">
-          </div>
-        </form>
+      <button id="endpointdata">
+        <a href="/tjs-endpoint.html">Do you have your data hosted on a server ?<br>
+          Click me</a>
+      </button>
+
+      <div class="credits">
+        To learn more how the TJS works see documentation from the
+        <a href="https://github.com/schawanji/TJS-Server">
+          TJS Github repository </a>. Here is the link to the
+        <a href="https://github.com/schawanji/TJS-Server-demonstrator">
+          TJS implentation demonstator</a>
+        Github repository.
       </div>
-    </header>
-    <div class="container">
-      <main><div id="map"></div></main>
-      <aside>
-        <h1>Layers</h1>
-        <div class="preference">
-          <input type="checkbox" name="default" id="default"><label for="default">OpenStreet map</label>
-        </div>
-        <div id="preference"></div>
-      </aside>
     </div>
 
-    <!--div class="credits">
-        <a href="https://github.com/schawanji/TJS-Server">
-          The documentation of how the VTC-TJS works
-        </a>
-
-        <a href="https://github.com/schawanji/TJS-Server-demonstrator">
-          <i class="fab fa-github"></i
-        ></a>
-      </div-->
     <script src="/TJS-Server-demonstrator.e31bb0bc.js"></script>
   </body>
 </html>
