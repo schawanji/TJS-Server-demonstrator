@@ -46,13 +46,14 @@ const form = document.querySelector("form");
 form.addEventListener("submit", (event) => {
   event.preventDefault();
 
-  let tjsUrl = document.querySelector("#api").value;
-  let frameworkData = document.querySelector("#framework").value;
-  let attributeData = document.querySelector("#attribute").value;
-  let frameworkKey = document.querySelector("#key").value;
-  let results = document.querySelector("#results");
+  let tjsUrl = document.querySelector("#apiurl").value;
+  let frameworkData = document.querySelector("#frameworkurl").value;
+  let attributeData = document.querySelector("#attributeurl").value;
+  let frameworkKey = document.querySelector("#frameworkkey").value;
+  let attributeKey = document.querySelector("#attributekey").value;
+  
 
-  const url = `${tjsUrl}FrameworkURI=${frameworkData}&GetDataURL=${attributeData}&FrameworkKey=${frameworkKey}`;
+  const url = `${tjsUrl}FrameworkURI=${frameworkData}&GetDataURL=${attributeData}&FrameworkKey=${frameworkKey}&AttributeKey=${attributeKey}`;
 
   const vectorLayer = new VectorLayer({
     source: new VectorSource({

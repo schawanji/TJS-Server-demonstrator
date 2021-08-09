@@ -27,12 +27,13 @@
         <div class="row">
           <div class="col-12">
             <div id="side-bar">
-              <form>
-                <div class="row">
-                  <span class="col-2">
+              <div class="form">
+                <form id="join-form">
+                  <span class="input-group mb-3">
                     <input
                       type="url"
-                      id="api"
+                      id="apiurl"
+                      name="apiurl"
                       class="form-control"
                       placeholder="Enter URL e.g (https://example.tjs/api)"
                       pattern="https://.*"
@@ -41,11 +42,12 @@
                       value="https://schawanji.herokuapp.com/tjs/api/joindata?"
                     />
                   </span>
-
-                  <span class="col-2">
+          
+                  <span class="input-group mb-3">
                     <input
                       type="url"
-                      id="framework"
+                      id="frameworkurl"
+                      name="frameworkurl"
                       class="form-control"
                       placeholder="Enter URL e.g (https://example.geojson)"
                       pattern="https://.*"
@@ -54,34 +56,43 @@
                       value="https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json"
                     />
                   </span>
-
-                  <span class="col-2"
-                    ><input
+          
+                  <span class="input-group mb-3">
+                    <input
                       type="url"
                       class="form-control"
-                      id="attribute"
+                      id="attributeurl"
+                      name="attributeurl"
                       placeholder="Enter URL e.g (https://example.csv)"
                       pattern="https://.*"
                       required
                       value="https://schawanji.herokuapp.com/static/covid_data.csv"
-                  /></span>
-
-                  <span class="col-2"
-                    ><input
+                    />
+                  </span>
+                  <span class="input-group mb-3">
+                    <input
                       type="text"
                       class="form-control"
-                      id="key"
+                      id="frameworkkey"
+                      name="frameworkkey"
                       placeholder="Enter Framework Key"
+                      value="name"
+                    />
+                  </span>
+                  <span class="input-group mb-3">
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="attributekey"
+                      name="attributekey"
+                      placeholder="Enter Attribute Key"
                       value="state"
-                  /></span>
-                  <span class="col-2"
-                    ><input
-                      type="submit"
-                      class="btn btn-secondary"
-                      value="Join Data"
-                  /></span>
-                </div>
-              </form>
+                    />
+                  </span>
+                  <span class="submit-button">
+                    <input type="submit" class="btn" value="Generate Joined Data URL" />
+                  </span>
+                </form>
             </div>
             <div class="col-12">
               <div id="map" id="map"></div>

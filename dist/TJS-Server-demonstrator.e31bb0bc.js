@@ -226,6 +226,11 @@ function () {
      */
     this.propagationStopped;
     /**
+     * @type {boolean}
+     */
+
+    this.defaultPrevented;
+    /**
      * The event type.
      * @type {string}
      * @api
@@ -241,13 +246,14 @@ function () {
     this.target = null;
   }
   /**
-   * Stop event propagation.
+   * Prevent default. This means that no emulated `click`, `singleclick` or `doubleclick` events
+   * will be fired.
    * @api
    */
 
 
   BaseEvent.prototype.preventDefault = function () {
-    this.propagationStopped = true;
+    this.defaultPrevented = true;
   };
   /**
    * Stop event propagation.
@@ -303,6 +309,10 @@ var _default = {
    */
   PROPERTYCHANGE: 'propertychange'
 };
+/**
+ * @typedef {'propertychange'} Types
+ */
+
 exports.default = _default;
 },{}],"node_modules/ol/Disposable.js":[function(require,module,exports) {
 "use strict";
@@ -384,7 +394,7 @@ exports.isSorted = isSorted;
  *
  * @param {Array<*>} haystack Items to search through.
  * @param {*} needle The item to look for.
- * @param {Function=} opt_comparator Comparator function.
+ * @param {Function} [opt_comparator] Comparator function.
  * @return {number} The index of the item if found, -1 if not.
  */
 function binarySearch(haystack, needle, opt_comparator) {
@@ -438,11 +448,26 @@ function includes(arr, obj) {
   return arr.indexOf(obj) >= 0;
 }
 /**
- * @param {Array<number>} arr Array.
+ * {@link module:ol/tilegrid/TileGrid~TileGrid#getZForResolution} can use a function
+ * of this type to determine which nearest resolution to use.
+ *
+ * This function takes a `{number}` representing a value between two array entries,
+ * a `{number}` representing the value of the nearest higher entry and
+ * a `{number}` representing the value of the nearest lower entry
+ * as arguments and returns a `{number}`. If a negative number or zero is returned
+ * the lower value will be used, if a positive number is returned the higher value
+ * will be used.
+ * @typedef {function(number, number, number): number} NearestDirectionFunction
+ * @api
+ */
+
+/**
+ * @param {Array<number>} arr Array in desccending order.
  * @param {number} target Target.
- * @param {number} direction 0 means return the nearest, > 0
- *    means return the largest nearest, < 0 means return the
- *    smallest nearest.
+ * @param {number|NearestDirectionFunction} direction
+ *    0 means return the nearest,
+ *    > 0 means return the largest nearest,
+ *    < 0 means return the smallest nearest.
  * @return {number} Index.
  */
 
@@ -474,7 +499,13 @@ function linearFindNearest(arr, target, direction) {
         if (arr[i] == target) {
           return i;
         } else if (arr[i] < target) {
-          if (arr[i - 1] - target < target - arr[i]) {
+          if (typeof direction === 'function') {
+            if (direction(target, arr[i - 1], arr[i]) > 0) {
+              return i - 1;
+            } else {
+              return i;
+            }
+          } else if (arr[i - 1] - target < target - arr[i]) {
             return i - 1;
           } else {
             return i;
@@ -625,8 +656,8 @@ function findIndex(arr, func) {
 }
 /**
  * @param {Array<*>} arr The array to test.
- * @param {Function=} opt_func Comparison function.
- * @param {boolean=} opt_strict Strictly sorted (default false).
+ * @param {Function} [opt_func] Comparison function.
+ * @param {boolean} [opt_strict] Strictly sorted (default false).
  * @return {boolean} Return index.
  */
 
@@ -661,14 +692,14 @@ var _array = require("./array.js");
 
 /**
  * Always returns true.
- * @returns {boolean} true.
+ * @return {boolean} true.
  */
 function TRUE() {
   return true;
 }
 /**
  * Always returns false.
- * @returns {boolean} false.
+ * @return {boolean} false.
  */
 
 
@@ -840,6 +871,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -878,7 +910,7 @@ var Target =
 function (_super) {
   __extends(Target, _super);
   /**
-   * @param {*=} opt_target Default event target for dispatched events.
+   * @param {*} [opt_target] Default event target for dispatched events.
    */
 
 
@@ -1018,7 +1050,7 @@ function (_super) {
     return this.listeners_ && this.listeners_[type] || undefined;
   };
   /**
-   * @param {string=} opt_type Type. If not provided,
+   * @param {string} [opt_type] Type. If not provided,
    *     `true` will be returned if this event target has any listeners.
    * @return {boolean} Has listeners.
    */
@@ -1130,9 +1162,9 @@ var _obj = require("./obj.js");
 /**
  * Key to use with {@link module:ol/Observable~Observable#unByKey}.
  * @typedef {Object} EventsKey
- * @property {ListenerFunction} listener
- * @property {import("./events/Target.js").EventTargetLike} target
- * @property {string} type
+ * @property {ListenerFunction} listener Listener.
+ * @property {import("./events/Target.js").EventTargetLike} target Target.
+ * @property {string} type Type.
  * @api
  */
 
@@ -1146,7 +1178,7 @@ var _obj = require("./obj.js");
 
 /**
  * @typedef {Object} ListenerObject
- * @property {ListenerFunction} handleEvent
+ * @property {ListenerFunction} handleEvent HandleEvent listener function.
  */
 
 /**
@@ -1158,14 +1190,14 @@ var _obj = require("./obj.js");
  * https://google.github.io/closure-library/api/source/closure/goog/events/events.js.src.html
  *
  * This function efficiently binds a `listener` to a `this` object, and returns
- * a key for use with {@link module:ol/events~unlistenByKey}.
+ * a key for use with {@link module:ol/events.unlistenByKey}.
  *
  * @param {import("./events/Target.js").EventTargetLike} target Event target.
  * @param {string} type Event type.
  * @param {ListenerFunction} listener Listener.
- * @param {Object=} opt_this Object referenced by the `this` keyword in the
+ * @param {Object} [opt_this] Object referenced by the `this` keyword in the
  *     listener. Default is the `target`.
- * @param {boolean=} opt_once If true, add the listener as one-off listener.
+ * @param {boolean} [opt_once] If true, add the listener as one-off listener.
  * @return {EventsKey} Unique key for the listener.
  */
 function listen(target, type, listener, opt_this, opt_once) {
@@ -1196,17 +1228,17 @@ function listen(target, type, listener, opt_this, opt_once) {
  *
  * This function efficiently binds a `listener` as self-unregistering listener
  * to a `this` object, and returns a key for use with
- * {@link module:ol/events~unlistenByKey} in case the listener needs to be
+ * {@link module:ol/events.unlistenByKey} in case the listener needs to be
  * unregistered before it is called.
  *
- * When {@link module:ol/events~listen} is called with the same arguments after this
+ * When {@link module:ol/events.listen} is called with the same arguments after this
  * function, the self-unregistering listener will be turned into a permanent
  * listener.
  *
  * @param {import("./events/Target.js").EventTargetLike} target Event target.
  * @param {string} type Event type.
  * @param {ListenerFunction} listener Listener.
- * @param {Object=} opt_this Object referenced by the `this` keyword in the
+ * @param {Object} [opt_this] Object referenced by the `this` keyword in the
  *     listener. Default is the `target`.
  * @return {EventsKey} Key for unlistenByKey.
  */
@@ -1220,7 +1252,7 @@ function listenOnce(target, type, listener, opt_this) {
  * https://google.github.io/closure-library/api/source/closure/goog/events/events.js.src.html
  *
  * The argument passed to this function is the key returned from
- * {@link module:ol/events~listen} or {@link module:ol/events~listenOnce}.
+ * {@link module:ol/events.listen} or {@link module:ol/events.listenOnce}.
  *
  * @param {EventsKey} key The key.
  */
@@ -1263,6 +1295,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -1276,6 +1309,27 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @module ol/Observable
  */
 
+
+/***
+ * @template {string} Type
+ * @template {Event|import("./events/Event.js").default} EventClass
+ * @template Return
+ * @typedef {(type: Type|Type[], listener: (event: EventClass) => ?) => Return} OnSignature
+ */
+
+/***
+ * @template {string} Type
+ * @template Return
+ * @typedef {(type: Type[], listener: (event: Event|import("./events/Event").default) => ?) => Return} CombinedOnSignature
+ */
+
+/***
+ * @typedef {import("./events").EventsKey|Array<import("./events").EventsKey>} OnReturn
+ */
+
+/**
+ * @typedef {'change'|'error'} EventTypes
+ */
 
 /**
  * @classdesc
@@ -1295,11 +1349,26 @@ function (_super) {
 
   function Observable() {
     var _this = _super.call(this) || this;
+    /***
+     * @type {OnSignature<EventTypes, import("./events/Event.js").default, OnReturn>}
+     */
+
+
+    _this.on = _this.onInternal;
+    /***
+     * @type {OnSignature<EventTypes, import("./events/Event.js").default, OnReturn>}
+     */
+
+    _this.once = _this.onceInternal;
+    /***
+     * @type {OnSignature<EventTypes, import("./events/Event.js").default, void>}
+     */
+
+    _this.un = _this.unInternal;
     /**
      * @private
      * @type {number}
      */
-
 
     _this.revision_ = 0;
     return _this;
@@ -1326,17 +1395,14 @@ function (_super) {
     return this.revision_;
   };
   /**
-   * Listen for a certain type of event.
-   * @param {string|Array<string>} type The event type or array of event types.
-   * @param {function(?): ?} listener The listener function.
-   * @return {import("./events.js").EventsKey|Array<import("./events.js").EventsKey>} Unique key for the listener. If
-   *     called with an array of event types as the first argument, the return
-   *     will be an array of keys.
-   * @api
+   * @param {string|Array<string>} type Type.
+   * @param {function(?): ?} listener Listener.
+   * @return {import("./events.js").EventsKey|Array<import("./events.js").EventsKey>} Event key.
+   * @protected
    */
 
 
-  Observable.prototype.on = function (type, listener) {
+  Observable.prototype.onInternal = function (type, listener) {
     if (Array.isArray(type)) {
       var len = type.length;
       var keys = new Array(len);
@@ -1353,17 +1419,14 @@ function (_super) {
     }
   };
   /**
-   * Listen once for a certain type of event.
-   * @param {string|Array<string>} type The event type or array of event types.
-   * @param {function(?): ?} listener The listener function.
-   * @return {import("./events.js").EventsKey|Array<import("./events.js").EventsKey>} Unique key for the listener. If
-   *     called with an array of event types as the first argument, the return
-   *     will be an array of keys.
-   * @api
+   * @param {string|Array<string>} type Type.
+   * @param {function(?): ?} listener Listener.
+   * @return {import("./events.js").EventsKey|Array<import("./events.js").EventsKey>} Event key.
+   * @protected
    */
 
 
-  Observable.prototype.once = function (type, listener) {
+  Observable.prototype.onceInternal = function (type, listener) {
     var key;
 
     if (Array.isArray(type)) {
@@ -1386,13 +1449,13 @@ function (_super) {
   };
   /**
    * Unlisten for a certain type of event.
-   * @param {string|Array<string>} type The event type or array of event types.
-   * @param {function(?): ?} listener The listener function.
-   * @api
+   * @param {string|Array<string>} type Type.
+   * @param {function(?): ?} listener Listener.
+   * @protected
    */
 
 
-  Observable.prototype.un = function (type, listener) {
+  Observable.prototype.unInternal = function (type, listener) {
     var key =
     /** @type {Object} */
     listener.ol_key;
@@ -1411,12 +1474,45 @@ function (_super) {
   return Observable;
 }(_Target.default);
 /**
+ * Listen for a certain type of event.
+ * @function
+ * @param {string|Array<string>} type The event type or array of event types.
+ * @param {function((Event|import("./events/Event").default)): ?} listener The listener function.
+ * @return {import("./events.js").EventsKey|Array<import("./events.js").EventsKey>} Unique key for the listener. If
+ *     called with an array of event types as the first argument, the return
+ *     will be an array of keys.
+ * @api
+ */
+
+
+Observable.prototype.on;
+/**
+ * Listen once for a certain type of event.
+ * @function
+ * @param {string|Array<string>} type The event type or array of event types.
+ * @param {function((Event|import("./events/Event").default)): ?} listener The listener function.
+ * @return {import("./events.js").EventsKey|Array<import("./events.js").EventsKey>} Unique key for the listener. If
+ *     called with an array of event types as the first argument, the return
+ *     will be an array of keys.
+ * @api
+ */
+
+Observable.prototype.once;
+/**
+ * Unlisten for a certain type of event.
+ * @function
+ * @param {string|Array<string>} type The event type or array of event types.
+ * @param {function((Event|import("./events/Event").default)): ?} listener The listener function.
+ * @api
+ */
+
+Observable.prototype.un;
+/**
  * Removes an event listener using the key returned by `on()` or `once()`.
  * @param {import("./events.js").EventsKey|Array<import("./events.js").EventsKey>} key The key returned by `on()`
  *     or `once()` (or an array of keys).
  * @api
  */
-
 
 function unByKey(key) {
   if (Array.isArray(key)) {
@@ -1484,7 +1580,7 @@ function getUid(obj) {
  */
 
 
-var VERSION = '6.5.0';
+var VERSION = '6.6.1';
 exports.VERSION = VERSION;
 },{}],"node_modules/ol/Object.js":[function(require,module,exports) {
 "use strict";
@@ -1492,7 +1588,6 @@ exports.VERSION = VERSION;
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
-exports.getChangeEventType = getChangeEventType;
 exports.default = exports.ObjectEvent = void 0;
 
 var _Event = _interopRequireDefault(require("./events/Event.js"));
@@ -1521,6 +1616,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -1576,6 +1672,13 @@ function (_super) {
 
 exports.ObjectEvent = ObjectEvent;
 
+/***
+ * @template Return
+ * @typedef {import("./Observable").OnSignature<import("./Observable").EventTypes, import("./events/Event.js").default, Return> &
+ *    import("./Observable").OnSignature<import("./ObjectEventType").Types, ObjectEvent, Return> &
+ *    import("./Observable").CombinedOnSignature<import("./Observable").EventTypes|import("./ObjectEventType").Types, Return>} ObjectOnSignature
+ */
+
 /**
  * @classdesc
  * Abstract base class; normally only used for creating subclasses and not
@@ -1624,16 +1727,31 @@ var BaseObject =
 function (_super) {
   __extends(BaseObject, _super);
   /**
-   * @param {Object<string, *>=} opt_values An object with key-value pairs.
+   * @param {Object<string, *>} [opt_values] An object with key-value pairs.
    */
 
 
   function BaseObject(opt_values) {
-    var _this = _super.call(this) || this; // Call {@link module:ol/util~getUid} to ensure that the order of objects' ids is
+    var _this = _super.call(this) || this;
+    /***
+     * @type {ObjectOnSignature<import("./Observable.js").OnReturn>}
+     */
+
+
+    _this.on;
+    /***
+     * @type {ObjectOnSignature<import("./Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {ObjectOnSignature<void>}
+     */
+
+    _this.un; // Call {@link module:ol/util.getUid} to ensure that the order of objects' ids is
     // the same as the order in which they were created.  This also helps to
     // ensure that object properties are always added in the same order, which
     // helps many JavaScript engines generate faster code.
-
 
     (0, _util.getUid)(_this);
     /**
@@ -1702,16 +1820,34 @@ function (_super) {
 
   BaseObject.prototype.notify = function (key, oldValue) {
     var eventType;
-    eventType = getChangeEventType(key);
+    eventType = "change:" + key;
     this.dispatchEvent(new ObjectEvent(eventType, key, oldValue));
     eventType = _ObjectEventType.default.PROPERTYCHANGE;
     this.dispatchEvent(new ObjectEvent(eventType, key, oldValue));
   };
   /**
+   * @param {string} key Key name.
+   * @param {import("./events.js").Listener} listener Listener.
+   */
+
+
+  BaseObject.prototype.addChangeListener = function (key, listener) {
+    this.addEventListener("change:" + key, listener);
+  };
+  /**
+   * @param {string} key Key name.
+   * @param {import("./events.js").Listener} listener Listener.
+   */
+
+
+  BaseObject.prototype.removeChangeListener = function (key, listener) {
+    this.removeEventListener("change:" + key, listener);
+  };
+  /**
    * Sets a value.
    * @param {string} key Key name.
    * @param {*} value Value.
-   * @param {boolean=} opt_silent Update without triggering an event.
+   * @param {boolean} [opt_silent] Update without triggering an event.
    * @api
    */
 
@@ -1734,7 +1870,7 @@ function (_super) {
    * Sets a collection of key-value pairs.  Note that this changes any existing
    * properties and adds new ones (it does not remove any existing properties).
    * @param {Object<string, *>} values Values.
-   * @param {boolean=} opt_silent Update without triggering an event.
+   * @param {boolean} [opt_silent] Update without triggering an event.
    * @api
    */
 
@@ -1761,7 +1897,7 @@ function (_super) {
   /**
    * Unsets a property.
    * @param {string} key Key name.
-   * @param {boolean=} opt_silent Unset without triggering an event.
+   * @param {boolean} [opt_silent] Unset without triggering an event.
    * @api
    */
 
@@ -1783,20 +1919,6 @@ function (_super) {
 
   return BaseObject;
 }(_Observable.default);
-/**
- * @type {Object<string, string>}
- */
-
-
-var changeEventTypeCache = {};
-/**
- * @param {string} key Key name.
- * @return {string} Change name.
- */
-
-function getChangeEventType(key) {
-  return changeEventTypeCache.hasOwnProperty(key) ? changeEventTypeCache[key] : changeEventTypeCache[key] = 'change:' + key;
-}
 
 var _default = BaseObject;
 exports.default = _default;
@@ -1824,6 +1946,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -1917,7 +2040,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.createStyleFunction = createStyleFunction;
 exports.default = void 0;
 
-var _Object = _interopRequireWildcard(require("./Object.js"));
+var _Object = _interopRequireDefault(require("./Object.js"));
 
 var _EventType = _interopRequireDefault(require("./events/EventType.js"));
 
@@ -1926,10 +2049,6 @@ var _asserts = require("./asserts.js");
 var _events = require("./events.js");
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-function _getRequireWildcardCache(nodeInterop) { if (typeof WeakMap !== "function") return null; var cacheBabelInterop = new WeakMap(); var cacheNodeInterop = new WeakMap(); return (_getRequireWildcardCache = function (nodeInterop) { return nodeInterop ? cacheNodeInterop : cacheBabelInterop; })(nodeInterop); }
-
-function _interopRequireWildcard(obj, nodeInterop) { if (!nodeInterop && obj && obj.__esModule) { return obj; } if (obj === null || typeof obj !== "object" && typeof obj !== "function") { return { default: obj }; } var cache = _getRequireWildcardCache(nodeInterop); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj.default = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
 
 var __extends = void 0 && (void 0).__extends || function () {
   var extendStatics = function (d, b) {
@@ -1945,6 +2064,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -1965,6 +2085,14 @@ var __extends = void 0 && (void 0).__extends || function () {
 
 /**
  * @typedef {Feature|import("./render/Feature.js").default} FeatureLike
+ */
+
+/***
+ * @template Return
+ * @typedef {import("./Observable").OnSignature<import("./Observable").EventTypes, import("./events/Event.js").default, Return> &
+ *   import("./Observable").OnSignature<import("./ObjectEventType").Types|'change:geometry', import("./Object").ObjectEvent, Return> &
+ *   import("./Observable").CombinedOnSignature<import("./Observable").EventTypes|import("./ObjectEventType").Types
+ *     |'change:geometry', Return>} FeatureOnSignature
  */
 
 /**
@@ -2017,7 +2145,7 @@ var Feature =
 function (_super) {
   __extends(Feature, _super);
   /**
-   * @param {Geometry|Object<string, *>=} opt_geometryOrProperties
+   * @param {Geometry|Object<string, *>} [opt_geometryOrProperties]
    *     You may pass a Geometry object directly, or an object literal containing
    *     properties. If you pass an object literal, you may include a Geometry
    *     associated with a `geometry` key.
@@ -2026,11 +2154,26 @@ function (_super) {
 
   function Feature(opt_geometryOrProperties) {
     var _this = _super.call(this) || this;
+    /***
+     * @type {FeatureOnSignature<import("./Observable.js").OnReturn>}
+     */
+
+
+    _this.on;
+    /***
+     * @type {FeatureOnSignature<import("./Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {FeatureOnSignature<void>}
+     */
+
+    _this.un;
     /**
      * @private
      * @type {number|string|undefined}
      */
-
 
     _this.id_ = undefined;
     /**
@@ -2059,7 +2202,7 @@ function (_super) {
 
     _this.geometryChangeKey_ = null;
 
-    _this.addEventListener((0, _Object.getChangeEventType)(_this.geometryName_), _this.handleGeometryChanged_);
+    _this.addChangeListener(_this.geometryName_, _this.handleGeometryChanged_);
 
     if (opt_geometryOrProperties) {
       if (typeof
@@ -2211,7 +2354,7 @@ function (_super) {
    * single style object, an array of styles, or a function that takes a
    * resolution and returns an array of styles. To unset the feature style, call
    * `setStyle()` without arguments or a falsey value.
-   * @param {import("./style/Style.js").StyleLike=} opt_style Style for this feature.
+   * @param {import("./style/Style.js").StyleLike} [opt_style] Style for this feature.
    * @api
    * @fires module:ol/events/Event~BaseEvent#event:change
    */
@@ -2247,9 +2390,9 @@ function (_super) {
 
 
   Feature.prototype.setGeometryName = function (name) {
-    this.removeEventListener((0, _Object.getChangeEventType)(this.geometryName_), this.handleGeometryChanged_);
+    this.removeChangeListener(this.geometryName_, this.handleGeometryChanged_);
     this.geometryName_ = name;
-    this.addEventListener((0, _Object.getChangeEventType)(this.geometryName_), this.handleGeometryChanged_);
+    this.addChangeListener(this.geometryName_, this.handleGeometryChanged_);
     this.handleGeometryChanged_();
   };
 
@@ -2365,6 +2508,95 @@ METERS_PER_UNIT[Units.METERS] = 1;
 METERS_PER_UNIT[Units.USFEET] = 1200 / 3937;
 var _default = Units;
 exports.default = _default;
+},{}],"node_modules/ol/has.js":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.PASSIVE_EVENT_LISTENERS = exports.IMAGE_DECODE = exports.WORKER_OFFSCREEN_CANVAS = exports.DEVICE_PIXEL_RATIO = exports.MAC = exports.WEBKIT = exports.SAFARI = exports.FIREFOX = void 0;
+
+/**
+ * @module ol/has
+ */
+var ua = typeof navigator !== 'undefined' && typeof navigator.userAgent !== 'undefined' ? navigator.userAgent.toLowerCase() : '';
+/**
+ * User agent string says we are dealing with Firefox as browser.
+ * @type {boolean}
+ */
+
+var FIREFOX = ua.indexOf('firefox') !== -1;
+/**
+ * User agent string says we are dealing with Safari as browser.
+ * @type {boolean}
+ */
+
+exports.FIREFOX = FIREFOX;
+var SAFARI = ua.indexOf('safari') !== -1 && ua.indexOf('chrom') == -1;
+/**
+ * User agent string says we are dealing with a WebKit engine.
+ * @type {boolean}
+ */
+
+exports.SAFARI = SAFARI;
+var WEBKIT = ua.indexOf('webkit') !== -1 && ua.indexOf('edge') == -1;
+/**
+ * User agent string says we are dealing with a Mac as platform.
+ * @type {boolean}
+ */
+
+exports.WEBKIT = WEBKIT;
+var MAC = ua.indexOf('macintosh') !== -1;
+/**
+ * The ratio between physical pixels and device-independent pixels
+ * (dips) on the device (`window.devicePixelRatio`).
+ * @const
+ * @type {number}
+ * @api
+ */
+
+exports.MAC = MAC;
+var DEVICE_PIXEL_RATIO = typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 1;
+/**
+ * The execution context is a worker with OffscreenCanvas available.
+ * @const
+ * @type {boolean}
+ */
+
+exports.DEVICE_PIXEL_RATIO = DEVICE_PIXEL_RATIO;
+var WORKER_OFFSCREEN_CANVAS = typeof WorkerGlobalScope !== 'undefined' && typeof OffscreenCanvas !== 'undefined' && self instanceof WorkerGlobalScope; //eslint-disable-line
+
+/**
+ * Image.prototype.decode() is supported.
+ * @type {boolean}
+ */
+
+exports.WORKER_OFFSCREEN_CANVAS = WORKER_OFFSCREEN_CANVAS;
+var IMAGE_DECODE = typeof Image !== 'undefined' && Image.prototype.decode;
+/**
+ * @type {boolean}
+ */
+
+exports.IMAGE_DECODE = IMAGE_DECODE;
+
+var PASSIVE_EVENT_LISTENERS = function () {
+  var passive = false;
+
+  try {
+    var options = Object.defineProperty({}, 'passive', {
+      get: function () {
+        passive = true;
+      }
+    });
+    window.addEventListener('_', null, options);
+    window.removeEventListener('_', null, options);
+  } catch (error) {// passive not supported
+  }
+
+  return passive;
+}();
+
+exports.PASSIVE_EVENT_LISTENERS = PASSIVE_EVENT_LISTENERS;
 },{}],"node_modules/ol/transform.js":[function(require,module,exports) {
 "use strict";
 
@@ -2387,6 +2619,8 @@ exports.invert = invert;
 exports.makeInverse = makeInverse;
 exports.determinant = determinant;
 exports.toString = toString;
+
+var _has = require("./has.js");
 
 var _asserts = require("./asserts.js");
 
@@ -2601,7 +2835,7 @@ function compose(transform, dx1, dy1, sx, sy, angle, dx2, dy2) {
 /**
  * Creates a composite transform given an initial translation, scale, rotation, and
  * final translation (in that order only, not commutative). The resulting transform
- * string can be applied as `transform` porperty of an HTMLElement's style.
+ * string can be applied as `transform` property of an HTMLElement's style.
  * @param {number} dx1 Initial translation x.
  * @param {number} dy1 Initial translation y.
  * @param {number} sx Scale factor x.
@@ -2665,17 +2899,31 @@ function determinant(mat) {
   return mat[0] * mat[3] - mat[1] * mat[2];
 }
 /**
- * A string version of the transform.  This can be used
+ * @type {HTMLElement}
+ * @private
+ */
+
+
+var transformStringDiv;
+/**
+ * A rounded string version of the transform.  This can be used
  * for CSS transforms.
  * @param {!Transform} mat Matrix.
  * @return {string} The transform as a string.
  */
 
-
 function toString(mat) {
-  return 'matrix(' + mat.join(', ') + ')';
+  var transformString = 'matrix(' + mat.join(', ') + ')';
+
+  if (_has.WORKER_OFFSCREEN_CANVAS) {
+    return transformString;
+  }
+
+  var node = transformStringDiv || (transformStringDiv = document.createElement('div'));
+  node.style.transform = transformString;
+  return node.style.transform;
 }
-},{"./asserts.js":"node_modules/ol/asserts.js"}],"node_modules/ol/extent/Corner.js":[function(require,module,exports) {
+},{"./has.js":"node_modules/ol/has.js","./asserts.js":"node_modules/ol/asserts.js"}],"node_modules/ol/extent/Corner.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -2813,7 +3061,7 @@ function boundingExtent(coordinates) {
 /**
  * @param {Array<number>} xs Xs.
  * @param {Array<number>} ys Ys.
- * @param {Extent=} opt_extent Destination extent.
+ * @param {Extent} [opt_extent] Destination extent.
  * @private
  * @return {Extent} Extent.
  */
@@ -2830,7 +3078,7 @@ function _boundingExtentXYs(xs, ys, opt_extent) {
  * Return extent increased by the provided value.
  * @param {Extent} extent Extent.
  * @param {number} value The amount by which the extent should be buffered.
- * @param {Extent=} opt_extent Extent.
+ * @param {Extent} [opt_extent] Extent.
  * @return {Extent} Extent.
  * @api
  */
@@ -2851,7 +3099,7 @@ function buffer(extent, value, opt_extent) {
  * Creates a clone of an extent.
  *
  * @param {Extent} extent Extent to clone.
- * @param {Extent=} opt_extent Extent.
+ * @param {Extent} [opt_extent] Extent.
  * @return {Extent} The clone.
  */
 
@@ -2992,7 +3240,7 @@ function createEmpty() {
  * @param {number} minY Minimum Y.
  * @param {number} maxX Maximum X.
  * @param {number} maxY Maximum Y.
- * @param {Extent=} opt_extent Destination extent.
+ * @param {Extent} [opt_extent] Destination extent.
  * @return {Extent} Extent.
  */
 
@@ -3010,7 +3258,7 @@ function createOrUpdate(minX, minY, maxX, maxY, opt_extent) {
 }
 /**
  * Create a new empty extent or make the provided one empty.
- * @param {Extent=} opt_extent Extent.
+ * @param {Extent} [opt_extent] Extent.
  * @return {Extent} Extent.
  */
 
@@ -3020,7 +3268,7 @@ function createOrUpdateEmpty(opt_extent) {
 }
 /**
  * @param {import("./coordinate.js").Coordinate} coordinate Coordinate.
- * @param {Extent=} opt_extent Extent.
+ * @param {Extent} [opt_extent] Extent.
  * @return {Extent} Extent.
  */
 
@@ -3032,7 +3280,7 @@ function createOrUpdateFromCoordinate(coordinate, opt_extent) {
 }
 /**
  * @param {Array<import("./coordinate.js").Coordinate>} coordinates Coordinates.
- * @param {Extent=} opt_extent Extent.
+ * @param {Extent} [opt_extent] Extent.
  * @return {Extent} Extent.
  */
 
@@ -3046,7 +3294,7 @@ function createOrUpdateFromCoordinates(coordinates, opt_extent) {
  * @param {number} offset Offset.
  * @param {number} end End.
  * @param {number} stride Stride.
- * @param {Extent=} opt_extent Extent.
+ * @param {Extent} [opt_extent] Extent.
  * @return {Extent} Extent.
  */
 
@@ -3057,7 +3305,7 @@ function createOrUpdateFromFlatCoordinates(flatCoordinates, offset, end, stride,
 }
 /**
  * @param {Array<Array<import("./coordinate.js").Coordinate>>} rings Rings.
- * @param {Extent=} opt_extent Extent.
+ * @param {Extent} [opt_extent] Extent.
  * @return {Extent} Extent.
  */
 
@@ -3332,7 +3580,7 @@ function getEnlargedArea(extent1, extent2) {
  * @param {number} resolution Resolution.
  * @param {number} rotation Rotation.
  * @param {import("./size.js").Size} size Size.
- * @param {Extent=} opt_extent Destination extent.
+ * @param {Extent} [opt_extent] Destination extent.
  * @return {Extent} Extent.
  */
 
@@ -3384,7 +3632,7 @@ function getIntersectionArea(extent1, extent2) {
  * Get the intersection of two extents.
  * @param {Extent} extent1 Extent 1.
  * @param {Extent} extent2 Extent 2.
- * @param {Extent=} opt_extent Optional extent to populate with intersection.
+ * @param {Extent} [opt_extent] Optional extent to populate with intersection.
  * @return {Extent} Intersecting extent.
  * @api
  */
@@ -3501,7 +3749,7 @@ function isEmpty(extent) {
 }
 /**
  * @param {Extent} extent Extent.
- * @param {Extent=} opt_extent Extent.
+ * @param {Extent} [opt_extent] Extent.
  * @return {Extent} Extent.
  */
 
@@ -3593,8 +3841,8 @@ function intersectsSegment(extent, start, end) {
  * @param {Extent} extent Extent.
  * @param {import("./proj.js").TransformFunction} transformFn Transform function.
  * Called with `[minX, minY, maxX, maxY]` extent coordinates.
- * @param {Extent=} opt_extent Destination extent.
- * @param {number=} opt_stops Number of stops per side used for the transform.
+ * @param {Extent} [opt_extent] Destination extent.
+ * @param {number} [opt_stops] Number of stops per side used for the transform.
  * By default only the corners are used.
  * @return {Extent} Extent.
  * @api
@@ -3679,9 +3927,9 @@ var _Units = require("./Units.js");
  * @property {import("../extent.js").Extent} [worldExtent] The world extent for the SRS.
  * @property {function(number, import("../coordinate.js").Coordinate):number} [getPointResolution]
  * Function to determine resolution at a point. The function is called with a
- * `{number}` view resolution and an `{import("../coordinate.js").Coordinate}` as arguments, and returns
- * the `{number}` resolution in projection units at the passed coordinate. If this is `undefined`,
- * the default {@link module:ol/proj#getPointResolution} function will be used.
+ * `number` view resolution and a {@link module:ol/coordinate~Coordinate Coordinate} as arguments, and returns
+ * the `number` resolution in projection units at the passed coordinate. If this is `undefined`,
+ * the default {@link module:ol/proj.getPointResolution getPointResolution()} function will be used.
  */
 
 /**
@@ -3692,7 +3940,7 @@ var _Units = require("./Units.js");
  * and options use {@link module:ol/proj~ProjectionLike} which means the simple string
  * code will suffice.
  *
- * You can use {@link module:ol/proj~get} to retrieve the object for a particular
+ * You can use {@link module:ol/proj.get} to retrieve the object for a particular
  * projection.
  *
  * The library includes definitions for `EPSG:4326` and `EPSG:3857`, together
@@ -3707,7 +3955,7 @@ var _Units = require("./Units.js");
  *
  * If you use [proj4js](https://github.com/proj4js/proj4js), aliases can
  * be added using `proj4.defs()`. After all required projection definitions are
- * added, call the {@link module:ol/proj/proj4~register} function.
+ * added, call the {@link module:ol/proj/proj4.register} function.
  *
  * @api
  */
@@ -3925,7 +4173,7 @@ function () {
     this.worldExtent_ = worldExtent;
   };
   /**
-   * Set the getPointResolution function (see {@link module:ol/proj~getPointResolution}
+   * Set the getPointResolution function (see {@link module:ol/proj.getPointResolution}
    * for this projection.
    * @param {function(number, import("../coordinate.js").Coordinate):number} func Function
    * @api
@@ -4232,6 +4480,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -4326,8 +4575,8 @@ var PROJECTIONS = [new EPSG3857Projection('EPSG:3857'), new EPSG3857Projection('
  * Transformation from EPSG:4326 to EPSG:3857.
  *
  * @param {Array<number>} input Input array of coordinate values.
- * @param {Array<number>=} opt_output Output array of coordinate values.
- * @param {number=} opt_dimension Dimension (default is `2`).
+ * @param {Array<number>} [opt_output] Output array of coordinate values.
+ * @param {number} [opt_dimension] Dimension (default is `2`).
  * @return {Array<number>} Output array of coordinate values.
  */
 
@@ -4366,8 +4615,8 @@ function fromEPSG4326(input, opt_output, opt_dimension) {
  * Transformation from EPSG:3857 to EPSG:4326.
  *
  * @param {Array<number>} input Input array of coordinate values.
- * @param {Array<number>=} opt_output Output array of coordinate values.
- * @param {number=} opt_dimension Dimension (default is `2`).
+ * @param {Array<number>} [opt_output] Output array of coordinate values.
+ * @param {number} [opt_dimension] Dimension (default is `2`).
  * @return {Array<number>} Output array of coordinate values.
  */
 
@@ -4421,6 +4670,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -4475,7 +4725,7 @@ function (_super) {
   __extends(EPSG4326Projection, _super);
   /**
    * @param {string} code Code.
-   * @param {string=} opt_axisOrientation Axis orientation.
+   * @param {string} [opt_axisOrientation] Axis orientation.
    */
 
 
@@ -4711,7 +4961,7 @@ var DEFAULT_RADIUS = 6371008.8;
  * Get the great circle distance (in meters) between two geographic coordinates.
  * @param {Array} c1 Starting coordinate.
  * @param {Array} c2 Ending coordinate.
- * @param {number=} opt_radius The sphere radius to use.  Defaults to the Earth's
+ * @param {number} [opt_radius] The sphere radius to use.  Defaults to the Earth's
  *     mean radius using the WGS84 ellipsoid.
  * @return {number} The great circle distance between the points (in meters).
  * @api
@@ -4751,7 +5001,7 @@ function getLengthInternal(coordinates, radius) {
  * the sum of all rings.  For points, the length is zero.  For multi-part
  * geometries, the length is the sum of the length of each part.
  * @param {import("./geom/Geometry.js").default} geometry A geometry.
- * @param {SphereMetricOptions=} opt_options Options for the
+ * @param {SphereMetricOptions} [opt_options] Options for the
  * length calculation.  By default, geometries are assumed to be in 'EPSG:3857'.
  * You can change this by providing a `projection` option.
  * @return {number} The spherical length (in meters).
@@ -4844,7 +5094,7 @@ function getLength(geometry, opt_options) {
 /**
  * Returns the spherical area for a list of coordinates.
  *
- * [Reference](https://trs-new.jpl.nasa.gov/handle/2014/40409)
+ * [Reference](https://trs.jpl.nasa.gov/handle/2014/40409)
  * Robert. G. Chamberlain and William H. Duquette, "Some Algorithms for
  * Polygons on a Sphere", JPL Publication 07-03, Jet Propulsion
  * Laboratory, Pasadena, CA, June 2007
@@ -4877,7 +5127,7 @@ function getAreaInternal(coordinates, radius) {
  * Get the spherical area of a geometry.  This is the area (in meters) assuming
  * that polygon edges are segments of great circles on a sphere.
  * @param {import("./geom/Geometry.js").default} geometry A geometry.
- * @param {SphereMetricOptions=} opt_options Options for the area
+ * @param {SphereMetricOptions} [opt_options] Options for the area
  *     calculation.  By default, geometries are assumed to be in 'EPSG:3857'.
  *     You can change this by providing a `projection` option.
  * @return {number} The spherical area (in square meters).
@@ -4968,7 +5218,7 @@ function getArea(geometry, opt_options) {
  * @param {number} distance The great-circle distance between the origin
  *     point and the target point.
  * @param {number} bearing The bearing (in radians).
- * @param {number=} opt_radius The sphere radius to use.  Defaults to the Earth's
+ * @param {number} [opt_radius] The sphere radius to use.  Defaults to the Earth's
  *     mean radius using the WGS84 ellipsoid.
  * @return {import("./coordinate.js").Coordinate} The target point.
  */
@@ -4999,8 +5249,8 @@ exports.compareVersions = compareVersions;
 /**
  * @param {number} number Number to be formatted
  * @param {number} width The desired width
- * @param {number=} opt_precision Precision of the output string (i.e. number of decimal places)
- * @returns {string} Formatted string
+ * @param {number} [opt_precision] Precision of the output string (i.e. number of decimal places)
+ * @return {string} Formatted string
  */
 function padNumber(number, width, opt_precision) {
   var numberString = opt_precision !== undefined ? number.toFixed(opt_precision) : '' + number;
@@ -5012,7 +5262,7 @@ function padNumber(number, width, opt_precision) {
  * Adapted from https://github.com/omichelsen/compare-versions/blob/master/index.js
  * @param {string|number} v1 First version
  * @param {string|number} v2 Second version
- * @returns {number} Value
+ * @return {number} Value
  */
 
 
@@ -5197,7 +5447,7 @@ function closestOnSegment(coordinate, segment) {
  *     var out = stringifyFunc(coord);
  *     // out is now '7.85, 47.98'
  *
- * @param {number=} opt_fractionDigits The number of digits to include
+ * @param {number} [opt_fractionDigits] The number of digits to include
  *    after the decimal point. Default is `0`.
  * @return {CoordinateFormat} Coordinate format.
  * @api
@@ -5218,7 +5468,7 @@ function createStringXY(opt_fractionDigits) {
 /**
  * @param {string} hemispheres Hemispheres.
  * @param {number} degrees Degrees.
- * @param {number=} opt_fractionDigits The number of digits to include
+ * @param {number} [opt_fractionDigits] The number of digits to include
  *    after the decimal point. Default is `0`.
  * @return {string} String.
  */
@@ -5272,7 +5522,7 @@ function degreesToStringHDMS(hemispheres, degrees, opt_fractionDigits) {
  * @param {Coordinate} coordinate Coordinate.
  * @param {string} template A template string with `{x}` and `{y}` placeholders
  *     that will be replaced by first and second coordinate values.
- * @param {number=} opt_fractionDigits The number of digits to include
+ * @param {number} [opt_fractionDigits] The number of digits to include
  *    after the decimal point. Default is `0`.
  * @return {string} Formatted coordinate.
  * @api
@@ -5414,7 +5664,7 @@ function squaredDistanceToSegment(coordinate, segment) {
  *     // out is now '47° 58′ 60.0″ N 7° 50′ 60.0″ E'
  *
  * @param {Coordinate} coordinate Coordinate.
- * @param {number=} opt_fractionDigits The number of digits to include
+ * @param {number} [opt_fractionDigits] The number of digits to include
  *    after the decimal point. Default is `0`.
  * @return {string} Hemisphere, degrees, minutes and seconds.
  * @api
@@ -5448,7 +5698,7 @@ function toStringHDMS(coordinate, opt_fractionDigits) {
  *     // out is now '7.8, 48.0'
  *
  * @param {Coordinate} coordinate Coordinate.
- * @param {number=} opt_fractionDigits The number of digits to include
+ * @param {number} [opt_fractionDigits] The number of digits to include
  *    after the decimal point. Default is `0`.
  * @return {string} XY.
  * @api
@@ -5484,7 +5734,7 @@ function wrapX(coordinate, projection) {
 /**
  * @param {Coordinate} coordinate Coordinate.
  * @param {import("./proj/Projection.js").default} projection Projection.
- * @param {number=} opt_sourceExtentWidth Width of the source extent.
+ * @param {number} [opt_sourceExtentWidth] Width of the source extent.
  * @return {number} Offset in world widths.
  */
 
@@ -5619,15 +5869,15 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * `get('EPSG:1234').setExtent(extent)`.
  *
  * In addition to Proj4js support, any transform functions can be added with
- * {@link module:ol/proj~addCoordinateTransforms}. To use this, you must first create
+ * {@link module:ol/proj.addCoordinateTransforms}. To use this, you must first create
  * a {@link module:ol/proj/Projection} object for the new projection and add it with
- * {@link module:ol/proj~addProjection}. You can then add the forward and inverse
- * functions with {@link module:ol/proj~addCoordinateTransforms}. See
+ * {@link module:ol/proj.addProjection}. You can then add the forward and inverse
+ * functions with {@link module:ol/proj.addCoordinateTransforms}. See
  * examples/wms-custom-proj for an example of this.
  *
  * Note that if no transforms are needed and you only need to define the
  * projection, just add a {@link module:ol/proj/Projection} with
- * {@link module:ol/proj~addProjection}. See examples/wms-no-proj for an example of
+ * {@link module:ol/proj.addProjection}. See examples/wms-no-proj for an example of
  * this.
  */
 
@@ -5650,8 +5900,8 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 /**
  * @param {Array<number>} input Input coordinate array.
- * @param {Array<number>=} opt_output Output array of coordinate values.
- * @param {number=} opt_dimension Dimension.
+ * @param {Array<number>} [opt_output] Output array of coordinate values.
+ * @param {number} [opt_dimension] Dimension.
  * @return {Array<number>} Output coordinate array (new array, same coordinate
  *     values).
  */
@@ -5672,8 +5922,8 @@ function cloneTransform(input, opt_output, opt_dimension) {
 }
 /**
  * @param {Array<number>} input Input coordinate array.
- * @param {Array<number>=} opt_output Output array of coordinate values.
- * @param {number=} opt_dimension Dimension.
+ * @param {Array<number>} [opt_output] Output array of coordinate values.
+ * @param {number} [opt_dimension] Dimension.
  * @return {Array<number>} Input coordinate array (same array as input).
  */
 
@@ -5743,7 +5993,7 @@ function get(projectionLike) {
  * @param {ProjectionLike} projection The projection.
  * @param {number} resolution Nominal resolution in projection units.
  * @param {import("./coordinate.js").Coordinate} point Point to find adjusted resolution at.
- * @param {import("./proj/Units.js").default=} opt_units Units to get the point resolution in.
+ * @param {import("./proj/Units.js").default} [opt_units] Units to get the point resolution in.
  * Default is the projection's units.
  * @return {number} Point resolution.
  * @api
@@ -5880,8 +6130,8 @@ function createTransformFromCoordinateTransform(coordTransform) {
   return (
     /**
      * @param {Array<number>} input Input.
-     * @param {Array<number>=} opt_output Output.
-     * @param {number=} opt_dimension Dimension.
+     * @param {Array<number>} [opt_output] Output.
+     * @param {number} [opt_dimension] Dimension.
      * @return {Array<number>} Output.
      */
     function (input, opt_output, opt_dimension) {
@@ -5934,7 +6184,7 @@ function addCoordinateTransforms(source, destination, forward, inverse) {
  * Transforms a coordinate from longitude/latitude to a different projection.
  * @param {import("./coordinate.js").Coordinate} coordinate Coordinate as longitude and latitude, i.e.
  *     an array with longitude as 1st and latitude as 2nd element.
- * @param {ProjectionLike=} opt_projection Target projection. The
+ * @param {ProjectionLike} [opt_projection] Target projection. The
  *     default is Web Mercator, i.e. 'EPSG:3857'.
  * @return {import("./coordinate.js").Coordinate} Coordinate projected to the target projection.
  * @api
@@ -5947,7 +6197,7 @@ function fromLonLat(coordinate, opt_projection) {
 /**
  * Transforms a coordinate to longitude/latitude.
  * @param {import("./coordinate.js").Coordinate} coordinate Projected coordinate.
- * @param {ProjectionLike=} opt_projection Projection of the coordinate.
+ * @param {ProjectionLike} [opt_projection] Projection of the coordinate.
  *     The default is Web Mercator, i.e. 'EPSG:3857'.
  * @return {import("./coordinate.js").Coordinate} Coordinate as longitude and latitude, i.e. an array
  *     with longitude as 1st and latitude as 2nd element.
@@ -6034,7 +6284,7 @@ function getTransform(source, destination) {
  * Transforms a coordinate from source projection to destination projection.
  * This returns a new coordinate (and does not modify the original).
  *
- * See {@link module:ol/proj~transformExtent} for extent transformation.
+ * See {@link module:ol/proj.transformExtent} for extent transformation.
  * See the transform method of {@link module:ol/geom/Geometry~Geometry} and its
  * subclasses for geometry transforms.
  *
@@ -6057,7 +6307,7 @@ function transform(coordinate, source, destination) {
  * @param {import("./extent.js").Extent} extent The extent to transform.
  * @param {ProjectionLike} source Source projection-like.
  * @param {ProjectionLike} destination Destination projection-like.
- * @param {number=} opt_stops Number of stops per side used for the transform.
+ * @param {number} [opt_stops] Number of stops per side used for the transform.
  * By default only the corners are used.
  * @return {import("./extent.js").Extent} The transformed extent.
  * @api
@@ -6112,7 +6362,7 @@ function clearUserProjection() {
  * Get the projection for coordinates supplied from and returned by API methods.
  * Note that this method is not yet a part of the stable API.  Support for user
  * projections is not yet complete and should be considered experimental.
- * @returns {?Projection} The user projection (or null if not set).
+ * @return {?Projection} The user projection (or null if not set).
  */
 
 
@@ -6134,7 +6384,7 @@ function useGeographic() {
  * is set, the original coordinate is returned.
  * @param {Array<number>} coordinate Input coordinate.
  * @param {ProjectionLike} sourceProjection The input coordinate projection.
- * @returns {Array<number>} The input coordinate in the user projection.
+ * @return {Array<number>} The input coordinate in the user projection.
  */
 
 
@@ -6150,7 +6400,7 @@ function toUserCoordinate(coordinate, sourceProjection) {
  * is set, the original coordinate is returned.
  * @param {Array<number>} coordinate Input coordinate.
  * @param {ProjectionLike} destProjection The destination projection.
- * @returns {Array<number>} The input coordinate transformed.
+ * @return {Array<number>} The input coordinate transformed.
  */
 
 
@@ -6166,7 +6416,7 @@ function fromUserCoordinate(coordinate, destProjection) {
  * is set, the original extent is returned.
  * @param {import("./extent.js").Extent} extent Input extent.
  * @param {ProjectionLike} sourceProjection The input extent projection.
- * @returns {import("./extent.js").Extent} The input extent in the user projection.
+ * @return {import("./extent.js").Extent} The input extent in the user projection.
  */
 
 
@@ -6182,7 +6432,7 @@ function toUserExtent(extent, sourceProjection) {
  * is set, the original extent is returned.
  * @param {import("./extent.js").Extent} extent Input extent.
  * @param {ProjectionLike} destProjection The destination projection.
- * @returns {import("./extent.js").Extent} The input extent transformed.
+ * @return {import("./extent.js").Extent} The input extent transformed.
  */
 
 
@@ -6275,7 +6525,7 @@ exports.translate = translate;
  * @param {number} end End.
  * @param {number} stride Stride.
  * @param {import("../../transform.js").Transform} transform Transform.
- * @param {Array<number>=} opt_dest Destination.
+ * @param {Array<number>} [opt_dest] Destination.
  * @return {Array<number>} Transformed coordinates.
  */
 function transform2D(flatCoordinates, offset, end, stride, transform, opt_dest) {
@@ -6302,7 +6552,7 @@ function transform2D(flatCoordinates, offset, end, stride, transform, opt_dest) 
  * @param {number} stride Stride.
  * @param {number} angle Angle.
  * @param {Array<number>} anchor Rotation anchor point.
- * @param {Array<number>=} opt_dest Destination.
+ * @param {Array<number>} [opt_dest] Destination.
  * @return {Array<number>} Transformed coordinates.
  */
 
@@ -6341,7 +6591,7 @@ function rotate(flatCoordinates, offset, end, stride, angle, anchor, opt_dest) {
  * @param {number} sx Scale factor in the x-direction.
  * @param {number} sy Scale factor in the y-direction.
  * @param {Array<number>} anchor Scale anchor point.
- * @param {Array<number>=} opt_dest Destination.
+ * @param {Array<number>} [opt_dest] Destination.
  * @return {Array<number>} Transformed coordinates.
  */
 
@@ -6376,7 +6626,7 @@ function scale(flatCoordinates, offset, end, stride, sx, sy, anchor, opt_dest) {
  * @param {number} stride Stride.
  * @param {number} deltaX Delta X.
  * @param {number} deltaY Delta Y.
- * @param {Array<number>=} opt_dest Destination.
+ * @param {Array<number>} [opt_dest] Destination.
  * @return {Array<number>} Transformed coordinates.
  */
 
@@ -6440,6 +6690,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -6573,7 +6824,7 @@ function (_super) {
    * Return the closest point of the geometry to the passed point as
    * {@link module:ol/coordinate~Coordinate coordinate}.
    * @param {import("../coordinate.js").Coordinate} point Point.
-   * @param {import("../coordinate.js").Coordinate=} opt_closestPoint Closest point.
+   * @param {import("../coordinate.js").Coordinate} [opt_closestPoint] Closest point.
    * @return {import("../coordinate.js").Coordinate} Closest point.
    * @api
    */
@@ -6609,7 +6860,7 @@ function (_super) {
   };
   /**
    * Get the extent of the geometry.
-   * @param {import("../extent.js").Extent=} opt_extent Extent.
+   * @param {import("../extent.js").Extent} [opt_extent] Extent.
    * @return {import("../extent.js").Extent} extent Extent.
    * @api
    */
@@ -6646,8 +6897,8 @@ function (_super) {
    * coordinates in place.
    * @abstract
    * @param {number} sx The scaling factor in the x-direction.
-   * @param {number=} opt_sy The scaling factor in the y-direction (defaults to sx).
-   * @param {import("../coordinate.js").Coordinate=} opt_anchor The scale origin (defaults to the center
+   * @param {number} [opt_sy] The scaling factor in the y-direction (defaults to sx).
+   * @param {import("../coordinate.js").Coordinate} [opt_anchor] The scale origin (defaults to the center
    *     of the geometry extent).
    * @api
    */
@@ -6802,6 +7053,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -6827,7 +7079,7 @@ var GeometryCollection =
 function (_super) {
   __extends(GeometryCollection, _super);
   /**
-   * @param {Array<Geometry>=} opt_geometries Geometries.
+   * @param {Array<Geometry>} [opt_geometries] Geometries.
    */
 
 
@@ -7083,8 +7335,8 @@ function (_super) {
    * coordinates in place.
    * @abstract
    * @param {number} sx The scaling factor in the x-direction.
-   * @param {number=} opt_sy The scaling factor in the y-direction (defaults to sx).
-   * @param {import("../coordinate.js").Coordinate=} opt_anchor The scale origin (defaults to the center
+   * @param {number} [opt_sy] The scaling factor in the y-direction (defaults to sx).
+   * @param {import("../coordinate.js").Coordinate} [opt_anchor] The scale origin (defaults to the center
    *     of the geometry extent).
    * @api
    */
@@ -7278,20 +7530,20 @@ function () {
   function FeatureFormat() {
     /**
      * @protected
-     * @type {import("../proj/Projection.js").default}
+     * @type {import("../proj/Projection.js").default|undefined}
      */
-    this.dataProjection = null;
+    this.dataProjection = undefined;
     /**
      * @protected
-     * @type {import("../proj/Projection.js").default}
+     * @type {import("../proj/Projection.js").default|undefined}
      */
 
-    this.defaultFeatureProjection = null;
+    this.defaultFeatureProjection = undefined;
   }
   /**
    * Adds the data projection to the read options.
    * @param {Document|Element|Object|string} source Source.
-   * @param {ReadOptions=} opt_options Options.
+   * @param {ReadOptions} [opt_options] Options.
    * @return {ReadOptions|undefined} Options.
    * @protected
    */
@@ -7347,7 +7599,7 @@ function () {
    *
    * @abstract
    * @param {Document|Element|Object|string} source Source.
-   * @param {ReadOptions=} opt_options Read options.
+   * @param {ReadOptions} [opt_options] Read options.
    * @return {import("../Feature.js").FeatureLike} Feature.
    */
 
@@ -7360,7 +7612,7 @@ function () {
    *
    * @abstract
    * @param {Document|Element|ArrayBuffer|Object|string} source Source.
-   * @param {ReadOptions=} opt_options Read options.
+   * @param {ReadOptions} [opt_options] Read options.
    * @return {Array<import("../Feature.js").FeatureLike>} Features.
    */
 
@@ -7373,7 +7625,7 @@ function () {
    *
    * @abstract
    * @param {Document|Element|Object|string} source Source.
-   * @param {ReadOptions=} opt_options Read options.
+   * @param {ReadOptions} [opt_options] Read options.
    * @return {import("../geom/Geometry.js").default} Geometry.
    */
 
@@ -7386,7 +7638,7 @@ function () {
    *
    * @abstract
    * @param {Document|Element|Object|string} source Source.
-   * @return {import("../proj/Projection.js").default} Projection.
+   * @return {import("../proj/Projection.js").default|undefined} Projection.
    */
 
 
@@ -7398,8 +7650,8 @@ function () {
    *
    * @abstract
    * @param {import("../Feature.js").default} feature Feature.
-   * @param {WriteOptions=} opt_options Write options.
-   * @return {string} Result.
+   * @param {WriteOptions} [opt_options] Write options.
+   * @return {string|ArrayBuffer} Result.
    */
 
 
@@ -7411,8 +7663,8 @@ function () {
    *
    * @abstract
    * @param {Array<import("../Feature.js").default>} features Features.
-   * @param {WriteOptions=} opt_options Write options.
-   * @return {string} Result.
+   * @param {WriteOptions} [opt_options] Write options.
+   * @return {string|ArrayBuffer} Result.
    */
 
 
@@ -7424,8 +7676,8 @@ function () {
    *
    * @abstract
    * @param {import("../geom/Geometry.js").default} geometry Geometry.
-   * @param {WriteOptions=} opt_options Write options.
-   * @return {string} Result.
+   * @param {WriteOptions} [opt_options] Write options.
+   * @return {string|ArrayBuffer} Result.
    */
 
 
@@ -7440,7 +7692,7 @@ var _default = FeatureFormat;
 /**
  * @param {import("../geom/Geometry.js").default} geometry Geometry.
  * @param {boolean} write Set to true for writing, false for reading.
- * @param {(WriteOptions|ReadOptions)=} opt_options Options.
+ * @param {WriteOptions|ReadOptions} [opt_options] Options.
  * @return {import("../geom/Geometry.js").default} Transformed geometry.
  */
 
@@ -7488,7 +7740,7 @@ function transformGeometryWithOptions(geometry, write, opt_options) {
 }
 /**
  * @param {import("../extent.js").Extent} extent Extent.
- * @param {ReadOptions=} opt_options Read options.
+ * @param {ReadOptions} [opt_options] Read options.
  * @return {import("../extent.js").Extent} Transformed extent.
  */
 
@@ -7555,6 +7807,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -7598,7 +7851,7 @@ function (_super) {
    * read a feature collection.
    *
    * @param {ArrayBuffer|Document|Element|Object|string} source Source.
-   * @param {import("./Feature.js").ReadOptions=} opt_options Read options.
+   * @param {import("./Feature.js").ReadOptions} [opt_options] Read options.
    * @return {import("../Feature.js").default} Feature.
    * @api
    */
@@ -7612,7 +7865,7 @@ function (_super) {
    * collection.
    *
    * @param {ArrayBuffer|Document|Element|Object|string} source Source.
-   * @param {import("./Feature.js").ReadOptions=} opt_options Read options.
+   * @param {import("./Feature.js").ReadOptions} [opt_options] Read options.
    * @return {Array<import("../Feature.js").default>} Features.
    * @api
    */
@@ -7624,7 +7877,7 @@ function (_super) {
   /**
    * @abstract
    * @param {Object} object Object.
-   * @param {import("./Feature.js").ReadOptions=} opt_options Read options.
+   * @param {import("./Feature.js").ReadOptions} [opt_options] Read options.
    * @protected
    * @return {import("../Feature.js").default} Feature.
    */
@@ -7636,7 +7889,7 @@ function (_super) {
   /**
    * @abstract
    * @param {Object} object Object.
-   * @param {import("./Feature.js").ReadOptions=} opt_options Read options.
+   * @param {import("./Feature.js").ReadOptions} [opt_options] Read options.
    * @protected
    * @return {Array<import("../Feature.js").default>} Features.
    */
@@ -7649,7 +7902,7 @@ function (_super) {
    * Read a geometry.
    *
    * @param {ArrayBuffer|Document|Element|Object|string} source Source.
-   * @param {import("./Feature.js").ReadOptions=} opt_options Read options.
+   * @param {import("./Feature.js").ReadOptions} [opt_options] Read options.
    * @return {import("../geom/Geometry.js").default} Geometry.
    * @api
    */
@@ -7661,7 +7914,7 @@ function (_super) {
   /**
    * @abstract
    * @param {Object} object Object.
-   * @param {import("./Feature.js").ReadOptions=} opt_options Read options.
+   * @param {import("./Feature.js").ReadOptions} [opt_options] Read options.
    * @protected
    * @return {import("../geom/Geometry.js").default} Geometry.
    */
@@ -7697,7 +7950,7 @@ function (_super) {
    * Encode a feature as string.
    *
    * @param {import("../Feature.js").default} feature Feature.
-   * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+   * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
    * @return {string} Encoded feature.
    * @api
    */
@@ -7709,7 +7962,7 @@ function (_super) {
   /**
    * @abstract
    * @param {import("../Feature.js").default} feature Feature.
-   * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+   * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
    * @return {Object} Object.
    */
 
@@ -7721,7 +7974,7 @@ function (_super) {
    * Encode an array of features as string.
    *
    * @param {Array<import("../Feature.js").default>} features Features.
-   * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+   * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
    * @return {string} Encoded features.
    * @api
    */
@@ -7733,7 +7986,7 @@ function (_super) {
   /**
    * @abstract
    * @param {Array<import("../Feature.js").default>} features Features.
-   * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+   * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
    * @return {Object} Object.
    */
 
@@ -7745,7 +7998,7 @@ function (_super) {
    * Encode a geometry as string.
    *
    * @param {import("../geom/Geometry.js").default} geometry Geometry.
-   * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+   * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
    * @return {string} Encoded geometry.
    * @api
    */
@@ -7757,7 +8010,7 @@ function (_super) {
   /**
    * @abstract
    * @param {import("../geom/Geometry.js").default} geometry Geometry.
-   * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+   * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
    * @return {Object} Object.
    */
 
@@ -7850,6 +8103,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -8024,7 +8278,7 @@ function (_super) {
   /**
    * @abstract
    * @param {!Array<*>} coordinates Coordinates.
-   * @param {import("./GeometryLayout.js").default=} opt_layout Layout.
+   * @param {import("./GeometryLayout.js").default} [opt_layout] Layout.
    */
 
 
@@ -8104,8 +8358,8 @@ function (_super) {
    * Scale the geometry (with an optional origin).  This modifies the geometry
    * coordinates in place.
    * @param {number} sx The scaling factor in the x-direction.
-   * @param {number=} opt_sy The scaling factor in the y-direction (defaults to sx).
-   * @param {import("../coordinate.js").Coordinate=} opt_anchor The scale origin (defaults to the center
+   * @param {number} [opt_sy] The scaling factor in the y-direction (defaults to sx).
+   * @param {import("../coordinate.js").Coordinate} [opt_anchor] The scale origin (defaults to the center
    *     of the geometry extent).
    * @api
    */
@@ -8200,7 +8454,7 @@ function getStrideForLayout(layout) {
 /**
  * @param {SimpleGeometry} simpleGeometry Simple geometry.
  * @param {import("../transform.js").Transform} transform Transform.
- * @param {Array<number>=} opt_dest Destination.
+ * @param {Array<number>} [opt_dest] Destination.
  * @return {Array<number>} Transformed flat coordinates.
  */
 
@@ -8361,7 +8615,7 @@ function multiArrayMaxSquaredDelta(flatCoordinates, offset, endss, stride, max) 
  * @param {number} y Y.
  * @param {Array<number>} closestPoint Closest point.
  * @param {number} minSquaredDistance Minimum squared distance.
- * @param {Array<number>=} opt_tmpPoint Temporary point object.
+ * @param {Array<number>} [opt_tmpPoint] Temporary point object.
  * @return {number} Minimum squared distance.
  */
 
@@ -8449,7 +8703,7 @@ function assignClosestPoint(flatCoordinates, offset, end, stride, maxDelta, isRi
  * @param {number} y Y.
  * @param {Array<number>} closestPoint Closest point.
  * @param {number} minSquaredDistance Minimum squared distance.
- * @param {Array<number>=} opt_tmpPoint Temporary point object.
+ * @param {Array<number>} [opt_tmpPoint] Temporary point object.
  * @return {number} Minimum squared distance.
  */
 
@@ -8476,7 +8730,7 @@ function assignClosestArrayPoint(flatCoordinates, offset, ends, stride, maxDelta
  * @param {number} y Y.
  * @param {Array<number>} closestPoint Closest point.
  * @param {number} minSquaredDistance Minimum squared distance.
- * @param {Array<number>=} opt_tmpPoint Temporary point object.
+ * @param {Array<number>} [opt_tmpPoint] Temporary point object.
  * @return {number} Minimum squared distance.
  */
 
@@ -8546,7 +8800,7 @@ function deflateCoordinates(flatCoordinates, offset, coordinates, stride) {
  * @param {number} offset Offset.
  * @param {Array<Array<import("../../coordinate.js").Coordinate>>} coordinatess Coordinatess.
  * @param {number} stride Stride.
- * @param {Array<number>=} opt_ends Ends.
+ * @param {Array<number>} [opt_ends] Ends.
  * @return {Array<number>} Ends.
  */
 
@@ -8569,7 +8823,7 @@ function deflateCoordinatesArray(flatCoordinates, offset, coordinatess, stride, 
  * @param {number} offset Offset.
  * @param {Array<Array<Array<import("../../coordinate.js").Coordinate>>>} coordinatesss Coordinatesss.
  * @param {number} stride Stride.
- * @param {Array<Array<number>>=} opt_endss Endss.
+ * @param {Array<Array<number>>} [opt_endss] Endss.
  * @return {Array<Array<number>>} Endss.
  */
 
@@ -8641,7 +8895,7 @@ var _math = require("../../math.js");
  * @param {number} stride Stride.
  * @param {number} squaredTolerance Squared tolerance.
  * @param {boolean} highQuality Highest quality.
- * @param {Array<number>=} opt_simplifiedFlatCoordinates Simplified flat
+ * @param {Array<number>} [opt_simplifiedFlatCoordinates] Simplified flat
  *     coordinates.
  * @return {Array<number>} Simplified line string.
  */
@@ -9056,7 +9310,7 @@ exports.inflateMultiCoordinatesArray = inflateMultiCoordinatesArray;
  * @param {number} offset Offset.
  * @param {number} end End.
  * @param {number} stride Stride.
- * @param {Array<import("../../coordinate.js").Coordinate>=} opt_coordinates Coordinates.
+ * @param {Array<import("../../coordinate.js").Coordinate>} [opt_coordinates] Coordinates.
  * @return {Array<import("../../coordinate.js").Coordinate>} Coordinates.
  */
 function inflateCoordinates(flatCoordinates, offset, end, stride, opt_coordinates) {
@@ -9075,7 +9329,7 @@ function inflateCoordinates(flatCoordinates, offset, end, stride, opt_coordinate
  * @param {number} offset Offset.
  * @param {Array<number>} ends Ends.
  * @param {number} stride Stride.
- * @param {Array<Array<import("../../coordinate.js").Coordinate>>=} opt_coordinatess Coordinatess.
+ * @param {Array<Array<import("../../coordinate.js").Coordinate>>} [opt_coordinatess] Coordinatess.
  * @return {Array<Array<import("../../coordinate.js").Coordinate>>} Coordinatess.
  */
 
@@ -9098,7 +9352,7 @@ function inflateCoordinatesArray(flatCoordinates, offset, ends, stride, opt_coor
  * @param {number} offset Offset.
  * @param {Array<Array<number>>} endss Endss.
  * @param {number} stride Stride.
- * @param {Array<Array<Array<import("../../coordinate.js").Coordinate>>>=} opt_coordinatesss
+ * @param {Array<Array<Array<import("../../coordinate.js").Coordinate>>>} [opt_coordinatesss]
  *     Coordinatesss.
  * @return {Array<Array<Array<import("../../coordinate.js").Coordinate>>>} Coordinatesss.
  */
@@ -9141,8 +9395,8 @@ var _math = require("../../math.js");
  * @param {number} end End.
  * @param {number} stride Stride.
  * @param {number} fraction Fraction.
- * @param {Array<number>=} opt_dest Destination.
- * @param {number=} opt_dimension Destination dimension (default is `2`)
+ * @param {Array<number>} [opt_dest] Destination.
+ * @param {number} [opt_dimension] Destination dimension (default is `2`)
  * @return {Array<number>} Destination.
  */
 function interpolatePoint(flatCoordinates, offset, end, stride, fraction, opt_dest, opt_dimension) {
@@ -9365,7 +9619,7 @@ function linearRingContainsExtent(flatCoordinates, offset, end, stride, extent) 
 
 
 function linearRingContainsXY(flatCoordinates, offset, end, stride, x, y) {
-  // http://geomalgorithms.com/a03-_inclusion.html
+  // https://geomalgorithms.com/a03-_inclusion.html
   // Copyright 2000 softSurfer, 2012 Dan Sunday
   // This code may be freely used and modified for any purpose
   // providing that this copyright notice is included with it.
@@ -9717,6 +9971,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -9744,7 +9999,7 @@ function (_super) {
   /**
    * @param {Array<import("../coordinate.js").Coordinate>|Array<number>} coordinates Coordinates.
    *     For internal use, flat coordinates in combination with `opt_layout` are also accepted.
-   * @param {import("./GeometryLayout.js").default=} opt_layout Layout.
+   * @param {import("./GeometryLayout.js").default} [opt_layout] Layout.
    */
 
 
@@ -9863,7 +10118,7 @@ function (_super) {
    * return the last coordinate.
    *
    * @param {number} m M.
-   * @param {boolean=} opt_extrapolate Extrapolate. Default is `false`.
+   * @param {boolean} [opt_extrapolate] Extrapolate. Default is `false`.
    * @return {import("../coordinate.js").Coordinate} Coordinate.
    * @api
    */
@@ -9892,7 +10147,7 @@ function (_super) {
    * The `fraction` is a number between 0 and 1, where 0 is the start of the
    * linestring and 1 is the end.
    * @param {number} fraction Fraction.
-   * @param {import("../coordinate.js").Coordinate=} opt_dest Optional coordinate whose values will
+   * @param {import("../coordinate.js").Coordinate} [opt_dest] Optional coordinate whose values will
    *     be modified. If not provided, a new coordinate will be returned.
    * @return {import("../coordinate.js").Coordinate} Coordinate of the interpolated point.
    * @api
@@ -9961,7 +10216,7 @@ function (_super) {
   /**
    * Set the coordinates of the linestring.
    * @param {!Array<import("../coordinate.js").Coordinate>} coordinates Coordinates.
-   * @param {import("./GeometryLayout.js").default=} opt_layout Layout.
+   * @param {import("./GeometryLayout.js").default} [opt_layout] Layout.
    * @api
    */
 
@@ -10030,6 +10285,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -10058,8 +10314,8 @@ function (_super) {
    * @param {Array<Array<import("../coordinate.js").Coordinate>|LineString>|Array<number>} coordinates
    *     Coordinates or LineString geometries. (For internal use, flat coordinates in
    *     combination with `opt_layout` and `opt_ends` are also accepted.)
-   * @param {import("./GeometryLayout.js").default=} opt_layout Layout.
-   * @param {Array<number>=} opt_ends Flat coordinate ends for internal use.
+   * @param {import("./GeometryLayout.js").default} [opt_layout] Layout.
+   * @param {Array<number>} [opt_ends] Flat coordinate ends for internal use.
    */
 
 
@@ -10189,8 +10445,8 @@ function (_super) {
    * LineStrings.
    *
    * @param {number} m M.
-   * @param {boolean=} opt_extrapolate Extrapolate. Default is `false`.
-   * @param {boolean=} opt_interpolate Interpolate. Default is `false`.
+   * @param {boolean} [opt_extrapolate] Extrapolate. Default is `false`.
+   * @param {boolean} [opt_interpolate] Interpolate. Default is `false`.
    * @return {import("../coordinate.js").Coordinate} Coordinate.
    * @api
    */
@@ -10321,7 +10577,7 @@ function (_super) {
   /**
    * Set the coordinates of the multilinestring.
    * @param {!Array<Array<import("../coordinate.js").Coordinate>>} coordinates Coordinates.
-   * @param {GeometryLayout=} opt_layout Layout.
+   * @param {GeometryLayout} [opt_layout] Layout.
    * @api
    */
 
@@ -10377,6 +10633,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -10403,7 +10660,7 @@ function (_super) {
   __extends(Point, _super);
   /**
    * @param {import("../coordinate.js").Coordinate} coordinates Coordinates.
-   * @param {import("./GeometryLayout.js").default=} opt_layout Layout.
+   * @param {import("./GeometryLayout.js").default} [opt_layout] Layout.
    */
 
 
@@ -10495,7 +10752,7 @@ function (_super) {
   };
   /**
    * @param {!Array<*>} coordinates Coordinates.
-   * @param {import("./GeometryLayout.js").default=} opt_layout Layout.
+   * @param {import("./GeometryLayout.js").default} [opt_layout] Layout.
    * @api
    */
 
@@ -10556,6 +10813,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -10583,7 +10841,7 @@ function (_super) {
   /**
    * @param {Array<import("../coordinate.js").Coordinate>|Array<number>} coordinates Coordinates.
    *     For internal use, flat coordinates in combination with `opt_layout` are also accepted.
-   * @param {import("./GeometryLayout.js").default=} opt_layout Layout.
+   * @param {import("./GeometryLayout.js").default} [opt_layout] Layout.
    */
 
 
@@ -10748,7 +11006,7 @@ function (_super) {
   /**
    * Set the coordinates of the multipoint.
    * @param {!Array<import("../coordinate.js").Coordinate>} coordinates Coordinates.
-   * @param {import("./GeometryLayout.js").default=} opt_layout Layout.
+   * @param {import("./GeometryLayout.js").default} [opt_layout] Layout.
    * @api
    */
 
@@ -10887,6 +11145,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -10915,7 +11174,7 @@ function (_super) {
   /**
    * @param {Array<import("../coordinate.js").Coordinate>|Array<number>} coordinates Coordinates.
    *     For internal use, flat coordinates in combination with `opt_layout` are also accepted.
-   * @param {import("./GeometryLayout.js").default=} opt_layout Layout.
+   * @param {import("./GeometryLayout.js").default} [opt_layout] Layout.
    */
 
 
@@ -11034,7 +11293,7 @@ function (_super) {
   /**
    * Set the coordinates of the linear ring.
    * @param {!Array<import("../coordinate.js").Coordinate>} coordinates Coordinates.
-   * @param {import("./GeometryLayout.js").default=} opt_layout Layout.
+   * @param {import("./GeometryLayout.js").default} [opt_layout] Layout.
    * @api
    */
 
@@ -11081,7 +11340,7 @@ var _array = require("../../array.js");
  * @param {number} stride Stride.
  * @param {Array<number>} flatCenters Flat centers.
  * @param {number} flatCentersOffset Flat center offset.
- * @param {Array<number>=} opt_dest Destination.
+ * @param {Array<number>} [opt_dest] Destination.
  * @return {Array<number>} Destination point as XYM coordinate, where M is the
  * length of the horizontal intersection that the point belongs to.
  */
@@ -11228,8 +11487,8 @@ var _reverse = require("./reverse.js");
  * @return {boolean} Is clockwise.
  */
 function linearRingIsClockwise(flatCoordinates, offset, end, stride) {
-  // http://tinyurl.com/clockwise-method
-  // https://github.com/OSGeo/gdal/blob/trunk/gdal/ogr/ogrlinearring.cpp
+  // https://stackoverflow.com/q/1165647/clockwise-method#1165943
+  // https://github.com/OSGeo/gdal/blob/master/gdal/ogr/ogrlinearring.cpp
   var edge = 0;
   var x1 = flatCoordinates[end - stride];
   var y1 = flatCoordinates[end - stride + 1];
@@ -11253,7 +11512,7 @@ function linearRingIsClockwise(flatCoordinates, offset, end, stride) {
  * @param {number} offset Offset.
  * @param {Array<number>} ends Array of end indexes.
  * @param {number} stride Stride.
- * @param {boolean=} opt_right Test for right-hand orientation
+ * @param {boolean} [opt_right] Test for right-hand orientation
  *     (counter-clockwise exterior ring and clockwise interior rings).
  * @return {boolean} Rings are correctly oriented.
  */
@@ -11290,7 +11549,7 @@ function linearRingsAreOriented(flatCoordinates, offset, ends, stride, opt_right
  * @param {number} offset Offset.
  * @param {Array<Array<number>>} endss Array of array of end indexes.
  * @param {number} stride Stride.
- * @param {boolean=} opt_right Test for right-hand orientation
+ * @param {boolean} [opt_right] Test for right-hand orientation
  *     (counter-clockwise exterior ring and clockwise interior rings).
  * @return {boolean} Rings are correctly oriented.
  */
@@ -11321,7 +11580,7 @@ function linearRingssAreOriented(flatCoordinates, offset, endss, stride, opt_rig
  * @param {number} offset Offset.
  * @param {Array<number>} ends Ends.
  * @param {number} stride Stride.
- * @param {boolean=} opt_right Follow the right-hand rule for orientation.
+ * @param {boolean} [opt_right] Follow the right-hand rule for orientation.
  * @return {number} End.
  */
 
@@ -11353,7 +11612,7 @@ function orientLinearRings(flatCoordinates, offset, ends, stride, opt_right) {
  * @param {number} offset Offset.
  * @param {Array<Array<number>>} endss Array of array of end indexes.
  * @param {number} stride Stride.
- * @param {boolean=} opt_right Follow the right-hand rule for orientation.
+ * @param {boolean} [opt_right] Follow the right-hand rule for orientation.
  * @return {number} End.
  */
 
@@ -11429,6 +11688,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -11461,8 +11721,8 @@ function (_super) {
    *     an array of vertices' coordinates where the first coordinate and the last are
    *     equivalent. (For internal use, flat coordinates in combination with
    *     `opt_layout` and `opt_ends` are also accepted.)
-   * @param {import("./GeometryLayout.js").default=} opt_layout Layout.
-   * @param {Array<number>=} opt_ends Ends (for internal use with flat coordinates).
+   * @param {import("./GeometryLayout.js").default} [opt_layout] Layout.
+   * @param {Array<number>} [opt_ends] Ends (for internal use with flat coordinates).
    */
 
 
@@ -11600,7 +11860,7 @@ function (_super) {
    * Get the coordinate array for this geometry.  This array has the structure
    * of a GeoJSON coordinate array for polygons.
    *
-   * @param {boolean=} opt_right Orient coordinates according to the right-hand
+   * @param {boolean} [opt_right] Orient coordinates according to the right-hand
    *     rule (counter-clockwise for exterior and clockwise for interior rings).
    *     If `false`, coordinates will be oriented according to the left-hand rule
    *     (clockwise for exterior and counter-clockwise for interior rings).
@@ -11768,7 +12028,7 @@ function (_super) {
   /**
    * Set the coordinates of the polygon.
    * @param {!Array<Array<import("../coordinate.js").Coordinate>>} coordinates Coordinates.
-   * @param {import("./GeometryLayout.js").default=} opt_layout Layout.
+   * @param {import("./GeometryLayout.js").default} [opt_layout] Layout.
    * @api
    */
 
@@ -11793,10 +12053,10 @@ var _default = Polygon;
  * Create an approximation of a circle on the surface of a sphere.
  * @param {import("../coordinate.js").Coordinate} center Center (`[lon, lat]` in degrees).
  * @param {number} radius The great-circle distance from the center to
- *     the polygon vertices.
- * @param {number=} opt_n Optional number of vertices for the resulting
+ *     the polygon vertices in meters.
+ * @param {number} [opt_n] Optional number of vertices for the resulting
  *     polygon. Default is `32`.
- * @param {number=} opt_sphereRadius Optional radius for the sphere (defaults to
+ * @param {number} [opt_sphereRadius] Optional radius for the sphere (defaults to
  *     the Earth's mean radius using the WGS84 ellipsoid).
  * @return {Polygon} The "circular" polygon.
  * @api
@@ -11836,8 +12096,8 @@ function fromExtent(extent) {
 /**
  * Create a regular polygon from a circle.
  * @param {import("./Circle.js").default} circle Circle geometry.
- * @param {number=} opt_sides Number of sides of the polygon. Default is 32.
- * @param {number=} opt_angle Start angle for the first vertex of the polygon in
+ * @param {number} [opt_sides] Number of sides of the polygon. Default is 32.
+ * @param {number} [opt_angle] Start angle for the first vertex of the polygon in
  *     counter-clockwise radians. 0 means East. Default is 0.
  * @return {Polygon} Polygon geometry.
  * @api
@@ -11871,7 +12131,7 @@ function fromCircle(circle, opt_sides, opt_angle) {
  * @param {Polygon} polygon Polygon geometry.
  * @param {import("../coordinate.js").Coordinate} center Center of the regular polygon.
  * @param {number} radius Radius of the regular polygon.
- * @param {number=} opt_angle Start angle for the first vertex of the polygon in
+ * @param {number} [opt_angle] Start angle for the first vertex of the polygon in
  *     counter-clockwise radians. 0 means East. Default is 0.
  */
 
@@ -11983,6 +12243,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -12010,8 +12271,8 @@ function (_super) {
   /**
    * @param {Array<Array<Array<import("../coordinate.js").Coordinate>>|Polygon>|Array<number>} coordinates Coordinates.
    *     For internal use, flat coordinates in combination with `opt_layout` and `opt_endss` are also accepted.
-   * @param {import("./GeometryLayout.js").default=} opt_layout Layout.
-   * @param {Array<Array<number>>=} opt_endss Array of ends for internal use with flat coordinates.
+   * @param {import("./GeometryLayout.js").default} [opt_layout] Layout.
+   * @param {Array<Array<number>>} [opt_endss] Array of ends for internal use with flat coordinates.
    */
 
 
@@ -12199,7 +12460,7 @@ function (_super) {
    * Get the coordinate array for this geometry.  This array has the structure
    * of a GeoJSON coordinate array for multi-polygons.
    *
-   * @param {boolean=} opt_right Orient coordinates according to the right-hand
+   * @param {boolean} [opt_right] Orient coordinates according to the right-hand
    *     rule (counter-clockwise for exterior and clockwise for interior rings).
    *     If `false`, coordinates will be oriented according to the left-hand rule
    *     (clockwise for exterior and counter-clockwise for interior rings).
@@ -12377,7 +12638,7 @@ function (_super) {
   /**
    * Set the coordinates of the multipolygon.
    * @param {!Array<Array<Array<import("../coordinate.js").Coordinate>>>} coordinates Coordinates.
-   * @param {import("./GeometryLayout.js").default=} opt_layout Layout.
+   * @param {import("./GeometryLayout.js").default} [opt_layout] Layout.
    * @api
    */
 
@@ -12461,6 +12722,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -12508,7 +12770,7 @@ var GeoJSON =
 function (_super) {
   __extends(GeoJSON, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -12545,7 +12807,7 @@ function (_super) {
   }
   /**
    * @param {Object} object Object.
-   * @param {import("./Feature.js").ReadOptions=} opt_options Read options.
+   * @param {import("./Feature.js").ReadOptions} [opt_options] Read options.
    * @protected
    * @return {import("../Feature.js").default} Feature.
    */
@@ -12594,7 +12856,7 @@ function (_super) {
   };
   /**
    * @param {Object} object Object.
-   * @param {import("./Feature.js").ReadOptions=} opt_options Read options.
+   * @param {import("./Feature.js").ReadOptions} [opt_options] Read options.
    * @protected
    * @return {Array<Feature>} Features.
    */
@@ -12626,7 +12888,7 @@ function (_super) {
   };
   /**
    * @param {GeoJSONGeometry} object Object.
-   * @param {import("./Feature.js").ReadOptions=} opt_options Read options.
+   * @param {import("./Feature.js").ReadOptions} [opt_options] Read options.
    * @protected
    * @return {import("../geom/Geometry.js").default} Geometry.
    */
@@ -12667,7 +12929,7 @@ function (_super) {
    * Encode a feature as a GeoJSON Feature object.
    *
    * @param {import("../Feature.js").default} feature Feature.
-   * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+   * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
    * @return {GeoJSONFeature} Object.
    * @api
    */
@@ -12710,7 +12972,7 @@ function (_super) {
    * Encode an array of features as a GeoJSON object.
    *
    * @param {Array<import("../Feature.js").default>} features Features.
-   * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+   * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
    * @return {GeoJSONFeatureCollection} GeoJSON Object.
    * @api
    */
@@ -12733,7 +12995,7 @@ function (_super) {
    * Encode a geometry as a GeoJSON object.
    *
    * @param {import("../geom/Geometry.js").default} geometry Geometry.
-   * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+   * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
    * @return {GeoJSONGeometry|GeoJSONGeometryCollection} Object.
    * @api
    */
@@ -12747,7 +13009,7 @@ function (_super) {
 }(_JSONFeature.default);
 /**
  * @param {GeoJSONGeometry|GeoJSONGeometryCollection} object Object.
- * @param {import("./Feature.js").ReadOptions=} opt_options Read options.
+ * @param {import("./Feature.js").ReadOptions} [opt_options] Read options.
  * @return {import("../geom/Geometry.js").default} Geometry.
  */
 
@@ -12830,7 +13092,7 @@ function readGeometry(object, opt_options) {
 }
 /**
  * @param {GeoJSONGeometryCollection} object Object.
- * @param {import("./Feature.js").ReadOptions=} opt_options Read options.
+ * @param {import("./Feature.js").ReadOptions} [opt_options] Read options.
  * @return {GeometryCollection} Geometry collection.
  */
 
@@ -12902,7 +13164,7 @@ function readPolygonGeometry(object) {
 }
 /**
  * @param {import("../geom/Geometry.js").default} geometry Geometry.
- * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+ * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
  * @return {GeoJSONGeometry} GeoJSON geometry.
  */
 
@@ -12990,7 +13252,7 @@ function writeGeometry(geometry, opt_options) {
 }
 /**
  * @param {GeometryCollection} geometry Geometry.
- * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+ * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
  * @return {GeoJSONGeometryCollection} GeoJSON geometry collection.
  */
 
@@ -13008,7 +13270,7 @@ function writeGeometryCollectionGeometry(geometry, opt_options) {
 }
 /**
  * @param {LineString} geometry Geometry.
- * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+ * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
  * @return {GeoJSONGeometry} GeoJSON geometry.
  */
 
@@ -13021,7 +13283,7 @@ function writeLineStringGeometry(geometry, opt_options) {
 }
 /**
  * @param {MultiLineString} geometry Geometry.
- * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+ * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
  * @return {GeoJSONGeometry} GeoJSON geometry.
  */
 
@@ -13034,7 +13296,7 @@ function writeMultiLineStringGeometry(geometry, opt_options) {
 }
 /**
  * @param {MultiPoint} geometry Geometry.
- * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+ * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
  * @return {GeoJSONGeometry} GeoJSON geometry.
  */
 
@@ -13047,7 +13309,7 @@ function writeMultiPointGeometry(geometry, opt_options) {
 }
 /**
  * @param {MultiPolygon} geometry Geometry.
- * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+ * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
  * @return {GeoJSONGeometry} GeoJSON geometry.
  */
 
@@ -13066,7 +13328,7 @@ function writeMultiPolygonGeometry(geometry, opt_options) {
 }
 /**
  * @param {Point} geometry Geometry.
- * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+ * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
  * @return {GeoJSONGeometry} GeoJSON geometry.
  */
 
@@ -13079,7 +13341,7 @@ function writePointGeometry(geometry, opt_options) {
 }
 /**
  * @param {Polygon} geometry Geometry.
- * @param {import("./Feature.js").WriteOptions=} opt_options Write options.
+ * @param {import("./Feature.js").WriteOptions} [opt_options] Write options.
  * @return {GeoJSONGeometry} GeoJSON geometry.
  */
 
@@ -13575,6 +13837,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -13588,6 +13851,18 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @module ol/layer/Base
  */
 
+
+/**
+ * @typedef {import("../ObjectEventType").Types|'change:extent'|'change:maxResolution'|'change:maxZoom'|
+ *    'change:minResolution'|'change:minZoom'|'change:opacity'|'change:visible'|'change:zIndex'} BaseLayerObjectEventTypes
+ */
+
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<BaseLayerObjectEventTypes, import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|BaseLayerObjectEventTypes, Return>} BaseLayerOnSignature
+ */
 
 /**
  * @typedef {Object} Options
@@ -13608,6 +13883,7 @@ var __extends = void 0 && (void 0).__extends || function () {
  * visible.
  * @property {number} [maxZoom] The maximum view zoom level (inclusive) at which this layer will
  * be visible.
+ * @property {Object<string, *>} [properties] Arbitrary observable properties. Can be accessed with `#get()` and `#set()`.
  */
 
 /**
@@ -13631,12 +13907,33 @@ function (_super) {
 
   function BaseLayer(options) {
     var _this = _super.call(this) || this;
+    /***
+     * @type {BaseLayerOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+
+    _this.on;
+    /***
+     * @type {BaseLayerOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {BaseLayerOnSignature<void>}
+     */
+
+    _this.un;
     /**
      * @type {Object<string, *>}
      */
 
-
     var properties = (0, _obj.assign)({}, options);
+
+    if (typeof options.properties === 'object') {
+      delete properties.properties;
+      (0, _obj.assign)(properties, options.properties);
+    }
+
     properties[_Property.default.OPACITY] = options.opacity !== undefined ? options.opacity : 1;
     (0, _asserts.assert)(typeof properties[_Property.default.OPACITY] === 'number', 64); // Layer opacity must be a number
 
@@ -13676,7 +13973,7 @@ function (_super) {
    * This method is not meant to be called by layers or layer renderers because the state
    * is incorrect if the layer is included in a layer group.
    *
-   * @param {boolean=} opt_managed Layer is managed.
+   * @param {boolean} [opt_managed] Layer is managed.
    * @return {import("./Layer.js").State} Layer state.
    */
 
@@ -13694,7 +13991,7 @@ function (_super) {
     state.sourceState = this.getSourceState();
     state.visible = this.getVisible();
     state.extent = this.getExtent();
-    state.zIndex = zIndex !== undefined ? zIndex : state.managed === false ? Infinity : 0;
+    state.zIndex = zIndex === undefined && !state.managed ? Infinity : zIndex;
     state.maxResolution = this.getMaxResolution();
     state.minResolution = Math.max(this.getMinResolution(), 0);
     state.minZoom = this.getMinZoom();
@@ -13704,7 +14001,7 @@ function (_super) {
   };
   /**
    * @abstract
-   * @param {Array<import("./Layer.js").default>=} opt_array Array of layers (to be
+   * @param {Array<import("./Layer.js").default>} [opt_array] Array of layers (to be
    *     modified in place).
    * @return {Array<import("./Layer.js").default>} Array of layers.
    */
@@ -13715,7 +14012,7 @@ function (_super) {
   };
   /**
    * @abstract
-   * @param {Array<import("./Layer.js").State>=} opt_states Optional list of layer
+   * @param {Array<import("./Layer.js").State>} [opt_states] Optional list of layer
    *     states (to be modified in place).
    * @return {Array<import("./Layer.js").State>} List of layer states.
    */
@@ -14017,6 +14314,14 @@ var _default = {
    */
   RENDERCOMPLETE: 'rendercomplete'
 };
+/**
+ * @typedef {'postrender'|'precompose'|'postcompose'|'rendercomplete'} MapRenderEventTypes
+ */
+
+/**
+ * @typedef {'postrender'|'prerender'} LayerRenderEventTypes
+ */
+
 exports.default = _default;
 },{}],"node_modules/ol/source/State.js":[function(require,module,exports) {
 "use strict";
@@ -14064,8 +14369,6 @@ var _asserts = require("../asserts.js");
 
 var _obj = require("../obj.js");
 
-var _Object = require("../Object.js");
-
 var _events = require("../events.js");
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
@@ -14084,6 +14387,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -14102,7 +14406,18 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @typedef {function(import("../PluggableMap.js").FrameState):HTMLElement} RenderFunction
  */
 
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("./Base").BaseLayerObjectEventTypes|
+ *     'change:source', import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").OnSignature<import("../render/EventType").LayerRenderEventTypes, import("../render/Event").default, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("./Base").BaseLayerObjectEventTypes|'change:source'|
+ *     import("../render/EventType").LayerRenderEventTypes, Return>} LayerOnSignature
+ */
+
 /**
+ * @template {import("../source/Source.js").default} SourceType
  * @typedef {Object} Options
  * @property {string} [className='ol-layer'] A CSS class name to set to the layer element.
  * @property {number} [opacity=1] Opacity (0, 1).
@@ -14121,27 +14436,28 @@ var __extends = void 0 && (void 0).__extends || function () {
  * visible.
  * @property {number} [maxZoom] The maximum view zoom level (inclusive) at which this layer will
  * be visible.
- * @property {import("../source/Source.js").default} [source] Source for this layer.  If not provided to the constructor,
- * the source can be set by calling {@link module:ol/layer/Layer#setSource layer.setSource(source)} after
+ * @property {SourceType} [source] Source for this layer.  If not provided to the constructor,
+ * the source can be set by calling {@link module:ol/layer/Layer~Layer#setSource layer.setSource(source)} after
  * construction.
  * @property {import("../PluggableMap.js").default} [map] Map.
  * @property {RenderFunction} [render] Render function. Takes the frame state as input and is expected to return an
  * HTML element. Will overwrite the default rendering for the layer.
+ * @property {Object<string, *>} [properties] Arbitrary observable properties. Can be accessed with `#get()` and `#set()`.
  */
 
 /**
  * @typedef {Object} State
- * @property {import("./Layer.js").default} layer
+ * @property {import("./Layer.js").default} layer Layer.
  * @property {number} opacity Opacity, the value is rounded to two digits to appear after the decimal point.
- * @property {import("../source/State.js").default} sourceState
- * @property {boolean} visible
- * @property {boolean} managed
- * @property {import("../extent.js").Extent} [extent]
- * @property {number} zIndex
- * @property {number} maxResolution
- * @property {number} minResolution
- * @property {number} minZoom
- * @property {number} maxZoom
+ * @property {import("../source/State.js").default} sourceState SourceState.
+ * @property {boolean} visible Visible.
+ * @property {boolean} managed Managed.
+ * @property {import("../extent.js").Extent} [extent] Extent.
+ * @property {number} zIndex ZIndex.
+ * @property {number} maxResolution Maximum resolution.
+ * @property {number} minResolution Minimum resolution.
+ * @property {number} minZoom Minimum zoom.
+ * @property {number} maxZoom Maximum zoom.
  */
 
 /**
@@ -14154,7 +14470,7 @@ var __extends = void 0 && (void 0).__extends || function () {
  * Layers group together those properties that pertain to how the data is to be
  * displayed, irrespective of the source of that data.
  *
- * Layers are usually added to a map with {@link module:ol/Map#addLayer}. Components
+ * Layers are usually added to a map with {@link import("../PluggableMap.js").default#addLayer map.addLayer()}. Components
  * like {@link module:ol/interaction/Select~Select} use unmanaged layers
  * internally. These unmanaged layers are associated with the map using
  * {@link module:ol/layer/Layer~Layer#setMap} instead.
@@ -14162,7 +14478,7 @@ var __extends = void 0 && (void 0).__extends || function () {
  * A generic `change` event is fired when the state of the source changes.
  *
  * Please note that for performance reasons several layers might get rendered to
- * the same HTML element, which will cause {@link module:ol/Map~Map#forEachLayerAtPixel} to
+ * the same HTML element, which will cause {@link import("../PluggableMap.js").default#forEachLayerAtPixel map.forEachLayerAtPixel()} to
  * give false positives. To avoid this, apply different `className` properties to the
  * layers at creation time.
  *
@@ -14177,7 +14493,7 @@ var Layer =
 function (_super) {
   __extends(Layer, _super);
   /**
-   * @param {Options} options Layer options.
+   * @param {Options<SourceType>} options Layer options.
    */
 
 
@@ -14187,6 +14503,21 @@ function (_super) {
     var baseOptions = (0, _obj.assign)({}, options);
     delete baseOptions.source;
     _this = _super.call(this, baseOptions) || this;
+    /***
+     * @type {LayerOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.on;
+    /***
+     * @type {LayerOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {LayerOnSignature<void>}
+     */
+
+    _this.un;
     /**
      * @private
      * @type {?import("../events.js").EventsKey}
@@ -14220,7 +14551,7 @@ function (_super) {
       _this.setMap(options.map);
     }
 
-    _this.addEventListener((0, _Object.getChangeEventType)(_Property.default.SOURCE), _this.handleSourcePropertyChange_);
+    _this.addChangeListener(_Property.default.SOURCE, _this.handleSourcePropertyChange_);
 
     var source = options.source ?
     /** @type {SourceType} */
@@ -14231,7 +14562,7 @@ function (_super) {
     return _this;
   }
   /**
-   * @param {Array<import("./Layer.js").default>=} opt_array Array of layers (to be modified in place).
+   * @param {Array<import("./Layer.js").default>} [opt_array] Array of layers (to be modified in place).
    * @return {Array<import("./Layer.js").default>} Array of layers.
    */
 
@@ -14242,7 +14573,7 @@ function (_super) {
     return array;
   };
   /**
-   * @param {Array<import("./Layer.js").State>=} opt_states Optional list of layer states (to be modified in place).
+   * @param {Array<import("./Layer.js").State>} [opt_states] Optional list of layer states (to be modified in place).
    * @return {Array<import("./Layer.js").State>} List of layer states.
    */
 
@@ -14310,6 +14641,12 @@ function (_super) {
 
 
   Layer.prototype.getFeatures = function (pixel) {
+    if (!this.renderer_) {
+      return new Promise(function (resolve) {
+        return resolve([]);
+      });
+    }
+
     return this.renderer_.getFeatures(pixel);
   };
   /**
@@ -14332,12 +14669,12 @@ function (_super) {
   /**
    * Sets the layer to be rendered on top of other layers on a map. The map will
    * not manage this layer in its layers collection, and the callback in
-   * {@link module:ol/Map#forEachLayerAtPixel} will receive `null` as layer. This
+   * {@link module:ol/Map~Map#forEachLayerAtPixel} will receive `null` as layer. This
    * is useful for temporary layers. To remove an unmanaged layer from the map,
    * use `#setMap(null)`.
    *
    * To add the layer to a map and have it managed by the map, use
-   * {@link module:ol/Map#addLayer} instead.
+   * {@link module:ol/Map~Map#addLayer} instead.
    * @param {import("../PluggableMap.js").default} map Map.
    * @api
    */
@@ -14456,7 +14793,7 @@ function inView(layerState, viewState) {
 
 var _default = Layer;
 exports.default = _default;
-},{"./Base.js":"node_modules/ol/layer/Base.js","../events/EventType.js":"node_modules/ol/events/EventType.js","./Property.js":"node_modules/ol/layer/Property.js","../render/EventType.js":"node_modules/ol/render/EventType.js","../source/State.js":"node_modules/ol/source/State.js","../asserts.js":"node_modules/ol/asserts.js","../obj.js":"node_modules/ol/obj.js","../Object.js":"node_modules/ol/Object.js","../events.js":"node_modules/ol/events.js"}],"node_modules/ol/renderer/Map.js":[function(require,module,exports) {
+},{"./Base.js":"node_modules/ol/layer/Base.js","../events/EventType.js":"node_modules/ol/events/EventType.js","./Property.js":"node_modules/ol/layer/Property.js","../render/EventType.js":"node_modules/ol/render/EventType.js","../source/State.js":"node_modules/ol/source/State.js","../asserts.js":"node_modules/ol/asserts.js","../obj.js":"node_modules/ol/obj.js","../events.js":"node_modules/ol/events.js"}],"node_modules/ol/renderer/Map.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -14496,6 +14833,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -14512,11 +14850,11 @@ var __extends = void 0 && (void 0).__extends || function () {
 
 /**
  * @typedef HitMatch
- * @property {import("../Feature.js").FeatureLike} feature
- * @property {import("../layer/Layer.js").default} layer
- * @property {import("../geom/SimpleGeometry.js").default} geometry
- * @property {number} distanceSq
- * @property {import("./vector.js").FeatureCallback<T>} callback
+ * @property {import("../Feature.js").FeatureLike} feature Feature.
+ * @property {import("../layer/Layer.js").default} layer Layer.
+ * @property {import("../geom/SimpleGeometry.js").default} geometry Geometry.
+ * @property {number} distanceSq Squared distance.
+ * @property {import("./vector.js").FeatureCallback<T>} callback Callback.
  * @template T
  */
 
@@ -14766,6 +15104,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -14782,10 +15121,10 @@ function (_super) {
   __extends(RenderEvent, _super);
   /**
    * @param {import("./EventType.js").default} type Type.
-   * @param {import("../transform.js").Transform=} opt_inversePixelTransform Transform for
+   * @param {import("../transform.js").Transform} [opt_inversePixelTransform] Transform for
    *     CSS pixels to rendered pixels.
-   * @param {import("../PluggableMap.js").FrameState=} opt_frameState Frame state.
-   * @param {?CanvasRenderingContext2D=} opt_context Context.
+   * @param {import("../PluggableMap.js").FrameState} [opt_frameState] Frame state.
+   * @param {?CanvasRenderingContext2D} [opt_context] Context.
    */
 
 
@@ -14837,13 +15176,13 @@ exports.getFontParameters = exports.CLASS_COLLAPSED = exports.CLASS_CONTROL = ex
 
 /**
  * @typedef {Object} FontParameters
- * @property {string} style
- * @property {string} variant
- * @property {string} weight
- * @property {string} size
- * @property {string} lineHeight
- * @property {string} family
- * @property {Array<string>} families
+ * @property {string} style Style.
+ * @property {string} variant Variant.
+ * @property {string} weight Weight.
+ * @property {string} size Size.
+ * @property {string} lineHeight LineHeight.
+ * @property {string} family Family.
+ * @property {Array<string>} families Families.
  */
 
 /**
@@ -14900,7 +15239,7 @@ var CLASS_CONTROL = 'ol-control';
 exports.CLASS_CONTROL = CLASS_CONTROL;
 var CLASS_COLLAPSED = 'ol-collapsed';
 /**
- * From http://stackoverflow.com/questions/10135697/regex-to-parse-any-css-font
+ * From https://stackoverflow.com/questions/10135697/regex-to-parse-any-css-font
  * @type {RegExp}
  */
 
@@ -14944,95 +15283,6 @@ var getFontParameters = function (fontSpec) {
 };
 
 exports.getFontParameters = getFontParameters;
-},{}],"node_modules/ol/has.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.PASSIVE_EVENT_LISTENERS = exports.IMAGE_DECODE = exports.WORKER_OFFSCREEN_CANVAS = exports.DEVICE_PIXEL_RATIO = exports.MAC = exports.WEBKIT = exports.SAFARI = exports.FIREFOX = void 0;
-
-/**
- * @module ol/has
- */
-var ua = typeof navigator !== 'undefined' && typeof navigator.userAgent !== 'undefined' ? navigator.userAgent.toLowerCase() : '';
-/**
- * User agent string says we are dealing with Firefox as browser.
- * @type {boolean}
- */
-
-var FIREFOX = ua.indexOf('firefox') !== -1;
-/**
- * User agent string says we are dealing with Safari as browser.
- * @type {boolean}
- */
-
-exports.FIREFOX = FIREFOX;
-var SAFARI = ua.indexOf('safari') !== -1 && ua.indexOf('chrom') == -1;
-/**
- * User agent string says we are dealing with a WebKit engine.
- * @type {boolean}
- */
-
-exports.SAFARI = SAFARI;
-var WEBKIT = ua.indexOf('webkit') !== -1 && ua.indexOf('edge') == -1;
-/**
- * User agent string says we are dealing with a Mac as platform.
- * @type {boolean}
- */
-
-exports.WEBKIT = WEBKIT;
-var MAC = ua.indexOf('macintosh') !== -1;
-/**
- * The ratio between physical pixels and device-independent pixels
- * (dips) on the device (`window.devicePixelRatio`).
- * @const
- * @type {number}
- * @api
- */
-
-exports.MAC = MAC;
-var DEVICE_PIXEL_RATIO = typeof devicePixelRatio !== 'undefined' ? devicePixelRatio : 1;
-/**
- * The execution context is a worker with OffscreenCanvas available.
- * @const
- * @type {boolean}
- */
-
-exports.DEVICE_PIXEL_RATIO = DEVICE_PIXEL_RATIO;
-var WORKER_OFFSCREEN_CANVAS = typeof WorkerGlobalScope !== 'undefined' && typeof OffscreenCanvas !== 'undefined' && self instanceof WorkerGlobalScope; //eslint-disable-line
-
-/**
- * Image.prototype.decode() is supported.
- * @type {boolean}
- */
-
-exports.WORKER_OFFSCREEN_CANVAS = WORKER_OFFSCREEN_CANVAS;
-var IMAGE_DECODE = typeof Image !== 'undefined' && Image.prototype.decode;
-/**
- * @type {boolean}
- */
-
-exports.IMAGE_DECODE = IMAGE_DECODE;
-
-var PASSIVE_EVENT_LISTENERS = function () {
-  var passive = false;
-
-  try {
-    var options = Object.defineProperty({}, 'passive', {
-      get: function () {
-        passive = true;
-      }
-    });
-    window.addEventListener('_', null, options);
-    window.removeEventListener('_', null, options);
-  } catch (error) {// passive not supported
-  }
-
-  return passive;
-}();
-
-exports.PASSIVE_EVENT_LISTENERS = PASSIVE_EVENT_LISTENERS;
 },{}],"node_modules/ol/dom.js":[function(require,module,exports) {
 "use strict";
 
@@ -15056,12 +15306,13 @@ var _has = require("./has.js");
 
 /**
  * Create an html canvas element and returns its 2d context.
- * @param {number=} opt_width Canvas width.
- * @param {number=} opt_height Canvas height.
- * @param {Array<HTMLCanvasElement>=} opt_canvasPool Canvas pool to take existing canvas from.
+ * @param {number} [opt_width] Canvas width.
+ * @param {number} [opt_height] Canvas height.
+ * @param {Array<HTMLCanvasElement>} [opt_canvasPool] Canvas pool to take existing canvas from.
+ * @param {CanvasRenderingContext2DSettings} [opt_Context2DSettings] CanvasRenderingContext2DSettings
  * @return {CanvasRenderingContext2D} The context.
  */
-function createCanvasContext2D(opt_width, opt_height, opt_canvasPool) {
+function createCanvasContext2D(opt_width, opt_height, opt_canvasPool, opt_Context2DSettings) {
   var canvas = opt_canvasPool && opt_canvasPool.length ? opt_canvasPool.shift() : _has.WORKER_OFFSCREEN_CANVAS ? new OffscreenCanvas(opt_width || 300, opt_height || 300) : document.createElement('canvas');
 
   if (opt_width) {
@@ -15075,7 +15326,7 @@ function createCanvasContext2D(opt_width, opt_height, opt_canvasPool) {
 
   return (
     /** @type {CanvasRenderingContext2D} */
-    canvas.getContext('2d')
+    canvas.getContext('2d', opt_Context2DSettings)
   );
 }
 /**
@@ -15123,7 +15374,7 @@ function replaceNode(newNode, oldNode) {
 }
 /**
  * @param {Node} node The node to remove.
- * @returns {Node} The node that was removed or null.
+ * @return {Node} The node that was removed or null.
  */
 
 
@@ -15194,7 +15445,6 @@ exports.measureAndCacheTextWidth = measureAndCacheTextWidth;
 exports.measureTextWidths = measureTextWidths;
 exports.rotateAtOffset = rotateAtOffset;
 exports.drawImageOrLabel = drawImageOrLabel;
-exports.createTransformString = createTransformString;
 exports.measureTextHeight = exports.registerFont = exports.textHeights = exports.labelCache = exports.checkedFonts = exports.defaultLineWidth = exports.defaultPadding = exports.defaultTextBaseline = exports.defaultTextAlign = exports.defaultStrokeStyle = exports.defaultMiterLimit = exports.defaultLineJoin = exports.defaultLineDashOffset = exports.defaultLineDash = exports.defaultLineCap = exports.defaultFillStyle = exports.defaultFont = void 0;
 
 var _Object = _interopRequireDefault(require("../Object.js"));
@@ -15209,8 +15459,6 @@ var _dom = require("../dom.js");
 
 var _css = require("../css.js");
 
-var _transform = require("../transform.js");
-
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 /**
@@ -15219,60 +15467,60 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 /**
  * @typedef {Object} FillState
- * @property {import("../colorlike.js").ColorLike} fillStyle
+ * @property {import("../colorlike.js").ColorLike} fillStyle FillStyle.
  */
 
 /**
  * @typedef Label
- * @property {number} width
- * @property {number} height
- * @property {Array<string|number>} contextInstructions
+ * @property {number} width Width.
+ * @property {number} height Height.
+ * @property {Array<string|number>} contextInstructions ContextInstructions.
  */
 
 /**
  * @typedef {Object} FillStrokeState
- * @property {import("../colorlike.js").ColorLike} [currentFillStyle]
- * @property {import("../colorlike.js").ColorLike} [currentStrokeStyle]
- * @property {CanvasLineCap} [currentLineCap]
- * @property {Array<number>} currentLineDash
- * @property {number} [currentLineDashOffset]
- * @property {CanvasLineJoin} [currentLineJoin]
- * @property {number} [currentLineWidth]
- * @property {number} [currentMiterLimit]
- * @property {number} [lastStroke]
- * @property {import("../colorlike.js").ColorLike} [fillStyle]
- * @property {import("../colorlike.js").ColorLike} [strokeStyle]
- * @property {CanvasLineCap} [lineCap]
- * @property {Array<number>} lineDash
- * @property {number} [lineDashOffset]
- * @property {CanvasLineJoin} [lineJoin]
- * @property {number} [lineWidth]
- * @property {number} [miterLimit]
+ * @property {import("../colorlike.js").ColorLike} [currentFillStyle] Current FillStyle.
+ * @property {import("../colorlike.js").ColorLike} [currentStrokeStyle] Current StrokeStyle.
+ * @property {CanvasLineCap} [currentLineCap] Current LineCap.
+ * @property {Array<number>} currentLineDash Current LineDash.
+ * @property {number} [currentLineDashOffset] Current LineDashOffset.
+ * @property {CanvasLineJoin} [currentLineJoin] Current LineJoin.
+ * @property {number} [currentLineWidth] Current LineWidth.
+ * @property {number} [currentMiterLimit] Current MiterLimit.
+ * @property {number} [lastStroke] Last stroke.
+ * @property {import("../colorlike.js").ColorLike} [fillStyle] FillStyle.
+ * @property {import("../colorlike.js").ColorLike} [strokeStyle] StrokeStyle.
+ * @property {CanvasLineCap} [lineCap] LineCap.
+ * @property {Array<number>} lineDash LineDash.
+ * @property {number} [lineDashOffset] LineDashOffset.
+ * @property {CanvasLineJoin} [lineJoin] LineJoin.
+ * @property {number} [lineWidth] LineWidth.
+ * @property {number} [miterLimit] MiterLimit.
  */
 
 /**
  * @typedef {Object} StrokeState
- * @property {CanvasLineCap} lineCap
- * @property {Array<number>} lineDash
- * @property {number} lineDashOffset
- * @property {CanvasLineJoin} lineJoin
- * @property {number} lineWidth
- * @property {number} miterLimit
- * @property {import("../colorlike.js").ColorLike} strokeStyle
+ * @property {CanvasLineCap} lineCap LineCap.
+ * @property {Array<number>} lineDash LineDash.
+ * @property {number} lineDashOffset LineDashOffset.
+ * @property {CanvasLineJoin} lineJoin LineJoin.
+ * @property {number} lineWidth LineWidth.
+ * @property {number} miterLimit MiterLimit.
+ * @property {import("../colorlike.js").ColorLike} strokeStyle StrokeStyle.
  */
 
 /**
  * @typedef {Object} TextState
- * @property {string} font
- * @property {string} [textAlign]
- * @property {string} textBaseline
- * @property {string} [placement]
- * @property {number} [maxAngle]
- * @property {boolean} [overflow]
- * @property {import("../style/Fill.js").default} [backgroundFill]
- * @property {import("../style/Stroke.js").default} [backgroundStroke]
- * @property {import("../size.js").Size} [scale]
- * @property {Array<number>} [padding]
+ * @property {string} font Font.
+ * @property {string} [textAlign] TextAlign.
+ * @property {string} textBaseline TextBaseline.
+ * @property {string} [placement] Placement.
+ * @property {number} [maxAngle] MaxAngle.
+ * @property {boolean} [overflow] Overflow.
+ * @property {import("../style/Fill.js").default} [backgroundFill] BackgroundFill.
+ * @property {import("../style/Stroke.js").default} [backgroundStroke] BackgroundStroke.
+ * @property {import("../size.js").Size} [scale] Scale.
+ * @property {Array<number>} [padding] Padding.
  */
 
 /**
@@ -15379,7 +15627,7 @@ exports.defaultLineWidth = defaultLineWidth;
 var checkedFonts = new _Object.default();
 /**
  * The label cache for text rendering. To change the default cache size of 2048
- * entries, use {@link module:ol/structs/LRUCache#setSize}.
+ * entries, use {@link module:ol/structs/LRUCache~LRUCache#setSize cache.setSize()}.
  * Deprecated - there is no label cache any more.
  * @type {?}
  * @api
@@ -15518,7 +15766,7 @@ var measureTextHeight = function () {
   /**
    * @type {HTMLDivElement}
    */
-  var div;
+  var measureElement;
   return function (fontSpec) {
     var height = textHeights[fontSpec];
 
@@ -15529,19 +15777,23 @@ var measureTextHeight = function () {
         var lineHeight = isNaN(Number(font.lineHeight)) ? 1.2 : Number(font.lineHeight);
         height = lineHeight * (metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent);
       } else {
-        if (!div) {
-          div = document.createElement('div');
-          div.innerHTML = 'M';
-          div.style.margin = '0 !important';
-          div.style.padding = '0 !important';
-          div.style.position = 'absolute !important';
-          div.style.left = '-99999px !important';
+        if (!measureElement) {
+          measureElement = document.createElement('div');
+          measureElement.innerHTML = 'M';
+          measureElement.style.minHeight = '0';
+          measureElement.style.maxHeight = 'none';
+          measureElement.style.height = 'auto';
+          measureElement.style.padding = '0';
+          measureElement.style.border = 'none';
+          measureElement.style.position = 'absolute';
+          measureElement.style.display = 'block';
+          measureElement.style.left = '-99999px';
         }
 
-        div.style.font = fontSpec;
-        document.body.appendChild(div);
-        height = div.offsetHeight;
-        document.body.removeChild(div);
+        measureElement.style.font = fontSpec;
+        document.body.appendChild(measureElement);
+        height = measureElement.offsetHeight;
+        document.body.removeChild(measureElement);
       }
 
       textHeights[fontSpec] = height;
@@ -15586,7 +15838,7 @@ function measureTextWidth(font, text) {
  * @param {string} font The font.
  * @param {string} text The text to measure.
  * @param {Object<string, number>} cache A lookup of cached widths by text.
- * @returns {number} The text width.
+ * @return {number} The text width.
  */
 
 
@@ -15703,31 +15955,7 @@ function executeLabelInstructions(label, context) {
     }
   }
 }
-/**
- * @type {HTMLCanvasElement}
- * @private
- */
-
-
-var createTransformStringCanvas = null;
-/**
- * @param {import("../transform.js").Transform} transform Transform.
- * @return {string} CSS transform.
- */
-
-function createTransformString(transform) {
-  if (_has.WORKER_OFFSCREEN_CANVAS) {
-    return (0, _transform.toString)(transform);
-  } else {
-    if (!createTransformStringCanvas) {
-      createTransformStringCanvas = (0, _dom.createCanvasContext2D)(1, 1).canvas;
-    }
-
-    createTransformStringCanvas.style.transform = (0, _transform.toString)(transform);
-    return createTransformStringCanvas.style.transform;
-  }
-}
-},{"../Object.js":"node_modules/ol/Object.js","../events/Target.js":"node_modules/ol/events/Target.js","../has.js":"node_modules/ol/has.js","../obj.js":"node_modules/ol/obj.js","../dom.js":"node_modules/ol/dom.js","../css.js":"node_modules/ol/css.js","../transform.js":"node_modules/ol/transform.js"}],"node_modules/ol/renderer/Composite.js":[function(require,module,exports) {
+},{"../Object.js":"node_modules/ol/Object.js","../events/Target.js":"node_modules/ol/events/Target.js","../has.js":"node_modules/ol/has.js","../obj.js":"node_modules/ol/obj.js","../dom.js":"node_modules/ol/dom.js","../css.js":"node_modules/ol/css.js"}],"node_modules/ol/renderer/Composite.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -15771,6 +15999,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -15907,7 +16136,9 @@ function (_super) {
       }
 
       if ('getDeclutter' in layer) {
-        declutterLayers.push(layer);
+        declutterLayers.push(
+        /** @type {import("../layer/BaseVector.js").default} */
+        layer);
       }
     }
 
@@ -16034,6 +16265,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -16067,8 +16299,8 @@ function (_super) {
   __extends(CollectionEvent, _super);
   /**
    * @param {import("./CollectionEventType.js").default} type Type.
-   * @param {*=} opt_element Element.
-   * @param {number=} opt_index The index of the added or removed element.
+   * @param {*} [opt_element] Element.
+   * @param {number} [opt_index] The index of the added or removed element.
    */
 
 
@@ -16097,6 +16329,15 @@ function (_super) {
 
 exports.CollectionEvent = CollectionEvent;
 
+/***
+ * @template Return
+ * @typedef {import("./Observable").OnSignature<import("./Observable").EventTypes, import("./events/Event.js").default, Return> &
+ *   import("./Observable").OnSignature<import("./ObjectEventType").Types|'change:length', import("./Object").ObjectEvent, Return> &
+ *   import("./Observable").OnSignature<'add'|'remove', CollectionEvent, Return> &
+ *   import("./Observable").CombinedOnSignature<import("./Observable").EventTypes|import("./ObjectEventType").Types|
+ *     'change:length'|'add'|'remove',Return>} CollectionOnSignature
+ */
+
 /**
  * @typedef {Object} Options
  * @property {boolean} [unique=false] Disallow the same item from being added to
@@ -16121,14 +16362,29 @@ var Collection =
 function (_super) {
   __extends(Collection, _super);
   /**
-   * @param {Array<T>=} opt_array Array.
-   * @param {Options=} opt_options Collection options.
+   * @param {Array<T>} [opt_array] Array.
+   * @param {Options} [opt_options] Collection options.
    */
 
 
   function Collection(opt_array, opt_options) {
     var _this = _super.call(this) || this;
+    /***
+     * @type {CollectionOnSignature<import("./Observable.js").OnReturn>}
+     */
 
+
+    _this.on;
+    /***
+     * @type {CollectionOnSignature<import("./Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {CollectionOnSignature<void>}
+     */
+
+    _this.un;
     var options = opt_options || {};
     /**
      * @private
@@ -16350,7 +16606,7 @@ function (_super) {
   /**
    * @private
    * @param {T} elem Element.
-   * @param {number=} opt_except Optional index to ignore.
+   * @param {number} [opt_except] Optional index to ignore.
    */
 
 
@@ -16391,8 +16647,6 @@ var _asserts = require("../asserts.js");
 
 var _obj = require("../obj.js");
 
-var _Object = require("../Object.js");
-
 var _extent = require("../extent.js");
 
 var _util = require("../util.js");
@@ -16415,6 +16669,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -16447,11 +16702,8 @@ var __extends = void 0 && (void 0).__extends || function () {
  * visible.
  * @property {number} [maxZoom] The maximum view zoom level (inclusive) at which this layer will
  * be visible.
- * @property {number} [minZoom] The minimum view zoom level (exclusive) above which this layer will be
- * visible.
- * @property {number} [maxZoom] The maximum view zoom level (inclusive) at which this layer will
- * be visible.
  * @property {Array<import("./Base.js").default>|import("../Collection.js").default<import("./Base.js").default>} [layers] Child layers.
+ * @property {Object<string, *>} [properties] Arbitrary observable properties. Can be accessed with `#get()` and `#set()`.
  */
 
 /**
@@ -16475,7 +16727,7 @@ var LayerGroup =
 function (_super) {
   __extends(LayerGroup, _super);
   /**
-   * @param {Options=} opt_options Layer options.
+   * @param {Options} [opt_options] Layer options.
    */
 
 
@@ -16502,7 +16754,7 @@ function (_super) {
 
     _this.listenerKeys_ = {};
 
-    _this.addEventListener((0, _Object.getChangeEventType)(Property.LAYERS), _this.handleLayersChanged_);
+    _this.addChangeListener(Property.LAYERS, _this.handleLayersChanged_);
 
     if (layers) {
       if (Array.isArray(layers)) {
@@ -16615,7 +16867,7 @@ function (_super) {
     this.set(Property.LAYERS, layers);
   };
   /**
-   * @param {Array<import("./Layer.js").default>=} opt_array Array of layers (to be modified in place).
+   * @param {Array<import("./Layer.js").default>} [opt_array] Array of layers (to be modified in place).
    * @return {Array<import("./Layer.js").default>} Array of layers.
    */
 
@@ -16628,7 +16880,12 @@ function (_super) {
     return array;
   };
   /**
-   * @param {Array<import("./Layer.js").State>=} opt_states Optional list of layer states (to be modified in place).
+   * Get the layer states list and use this groups z-index as the default
+   * for all layers in this and nested groups, if it is unset at this point.
+   * If opt_states is not provided and this group's z-index is undefined
+   * 0 is used a the default z-index.
+   * @param {Array<import("./Layer.js").State>} [opt_states] Optional list
+   * of layer states (to be modified in place).
    * @return {Array<import("./Layer.js").State>} List of layer states.
    */
 
@@ -16640,6 +16897,11 @@ function (_super) {
       layer.getLayerStatesArray(states);
     });
     var ownLayerState = this.getLayerState();
+    var defaultZIndex = ownLayerState.zIndex;
+
+    if (!opt_states && ownLayerState.zIndex === undefined) {
+      defaultZIndex = 0;
+    }
 
     for (var i = pos, ii = states.length; i < ii; i++) {
       var layerState = states[i];
@@ -16656,6 +16918,10 @@ function (_super) {
         } else {
           layerState.extent = ownLayerState.extent;
         }
+      }
+
+      if (layerState.zIndex === undefined) {
+        layerState.zIndex = defaultZIndex;
       }
     }
 
@@ -16675,7 +16941,7 @@ function (_super) {
 
 var _default = LayerGroup;
 exports.default = _default;
-},{"./Base.js":"node_modules/ol/layer/Base.js","../Collection.js":"node_modules/ol/Collection.js","../CollectionEventType.js":"node_modules/ol/CollectionEventType.js","../events/EventType.js":"node_modules/ol/events/EventType.js","../ObjectEventType.js":"node_modules/ol/ObjectEventType.js","../source/State.js":"node_modules/ol/source/State.js","../asserts.js":"node_modules/ol/asserts.js","../obj.js":"node_modules/ol/obj.js","../Object.js":"node_modules/ol/Object.js","../extent.js":"node_modules/ol/extent.js","../util.js":"node_modules/ol/util.js","../events.js":"node_modules/ol/events.js"}],"node_modules/ol/MapEvent.js":[function(require,module,exports) {
+},{"./Base.js":"node_modules/ol/layer/Base.js","../Collection.js":"node_modules/ol/Collection.js","../CollectionEventType.js":"node_modules/ol/CollectionEventType.js","../events/EventType.js":"node_modules/ol/events/EventType.js","../ObjectEventType.js":"node_modules/ol/ObjectEventType.js","../source/State.js":"node_modules/ol/source/State.js","../asserts.js":"node_modules/ol/asserts.js","../obj.js":"node_modules/ol/obj.js","../extent.js":"node_modules/ol/extent.js","../util.js":"node_modules/ol/util.js","../events.js":"node_modules/ol/events.js"}],"node_modules/ol/MapEvent.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -16701,6 +16967,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -16727,7 +16994,7 @@ function (_super) {
   /**
    * @param {string} type Event type.
    * @param {import("./PluggableMap.js").default} map Map.
-   * @param {?import("./PluggableMap.js").FrameState=} opt_frameState Frame state.
+   * @param {?import("./PluggableMap.js").FrameState} [opt_frameState] Frame state.
    */
 
 
@@ -16782,6 +17049,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -16810,8 +17078,8 @@ function (_super) {
    * @param {string} type Event type.
    * @param {import("./PluggableMap.js").default} map Map.
    * @param {EVENT} originalEvent Original event.
-   * @param {boolean=} opt_dragging Is the map currently being dragged?
-   * @param {?import("./PluggableMap.js").FrameState=} opt_frameState Frame state.
+   * @param {boolean} [opt_dragging] Is the map currently being dragged?
+   * @param {?import("./PluggableMap.js").FrameState} [opt_frameState] Frame state.
    */
 
 
@@ -16898,7 +17166,10 @@ function (_super) {
   MapBrowserEvent.prototype.preventDefault = function () {
     _super.prototype.preventDefault.call(this);
 
-    this.originalEvent.preventDefault();
+    if ('preventDefault' in this.originalEvent) {
+      /** @type {UIEvent} */
+      this.originalEvent.preventDefault();
+    }
   };
   /**
    * Prevents further propagation of the current event.
@@ -16910,7 +17181,10 @@ function (_super) {
   MapBrowserEvent.prototype.stopPropagation = function () {
     _super.prototype.stopPropagation.call(this);
 
-    this.originalEvent.stopPropagation();
+    if ('stopPropagation' in this.originalEvent) {
+      /** @type {UIEvent} */
+      this.originalEvent.stopPropagation();
+    }
   };
 
   return MapBrowserEvent;
@@ -16983,6 +17257,10 @@ var _default = {
   POINTERLEAVE: 'pointerleave',
   POINTERCANCEL: 'pointercancel'
 };
+/***
+ * @typedef {'singleclick'|'click'|'dblclick'|'pointerdrag'|'pointermove'} Types
+ */
+
 exports.default = _default;
 },{"./events/EventType.js":"node_modules/ol/events/EventType.js"}],"node_modules/ol/pointer/EventType.js":[function(require,module,exports) {
 "use strict";
@@ -17019,8 +17297,6 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = void 0;
 
-var _Target = _interopRequireDefault(require("./events/Target.js"));
-
 var _EventType = _interopRequireDefault(require("./events/EventType.js"));
 
 var _MapBrowserEvent = _interopRequireDefault(require("./MapBrowserEvent.js"));
@@ -17029,7 +17305,11 @@ var _MapBrowserEventType = _interopRequireDefault(require("./MapBrowserEventType
 
 var _EventType2 = _interopRequireDefault(require("./pointer/EventType.js"));
 
+var _Target = _interopRequireDefault(require("./events/Target.js"));
+
 var _has = require("./has.js");
+
+var _functions = require("./functions.js");
 
 var _events = require("./events.js");
 
@@ -17052,6 +17332,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -17068,7 +17349,7 @@ function (_super) {
   __extends(MapBrowserEventHandler, _super);
   /**
    * @param {import("./PluggableMap.js").default} map The map with the viewport to listen to events on.
-   * @param {number=} moveTolerance The minimal distance the pointer must travel to trigger a move.
+   * @param {number} [moveTolerance] The minimal distance the pointer must travel to trigger a move.
    */
 
 
@@ -17111,7 +17392,7 @@ function (_super) {
      * @private
      */
 
-    _this.moveTolerance_ = moveTolerance ? moveTolerance * _has.DEVICE_PIXEL_RATIO : _has.DEVICE_PIXEL_RATIO;
+    _this.moveTolerance_ = moveTolerance === undefined ? 1 : moveTolerance;
     /**
      * The most recent "down" type event (or null if none have occurred).
      * Set on pointerdown.
@@ -17229,9 +17510,9 @@ function (_super) {
     // to 0).
     // See http://www.w3.org/TR/pointerevents/#button-states
     // We only fire click, singleclick, and doubleclick if nobody has called
-    // event.stopPropagation() or event.preventDefault().
+    // event.preventDefault().
 
-    if (this.emulateClicks_ && !newEvent.propagationStopped && !this.dragging_ && this.isMouseActionButton_(pointerEvent)) {
+    if (this.emulateClicks_ && !newEvent.defaultPrevented && !this.dragging_ && this.isMouseActionButton_(pointerEvent)) {
       this.emulateClick_(this.down_);
     }
 
@@ -17264,8 +17545,16 @@ function (_super) {
     this.emulateClicks_ = this.activePointers_ === 0;
     this.updateActivePointers_(pointerEvent);
     var newEvent = new _MapBrowserEvent.default(_MapBrowserEventType.default.POINTERDOWN, this.map_, pointerEvent);
-    this.dispatchEvent(newEvent);
-    this.down_ = pointerEvent;
+    this.dispatchEvent(newEvent); // Store a copy of the down event
+
+    this.down_ =
+    /** @type {PointerEvent} */
+    {};
+
+    for (var property in pointerEvent) {
+      var value = pointerEvent[property];
+      this.down_[property] = typeof value === 'function' ? _functions.VOID : value;
+    }
 
     if (this.dragListenerKeys_.length === 0) {
       var doc = this.map_.getOwnerDocument();
@@ -17334,7 +17623,9 @@ function (_super) {
   MapBrowserEventHandler.prototype.handleTouchMove_ = function (event) {
     // Due to https://github.com/mpizenberg/elm-pep/issues/2, `this.originalPointerMoveEvent_`
     // may not be initialized yet when we get here on a platform without native pointer events.
-    if (!this.originalPointerMoveEvent_ || this.originalPointerMoveEvent_.defaultPrevented) {
+    var originalEvent = this.originalPointerMoveEvent_;
+
+    if ((!originalEvent || originalEvent.defaultPrevented) && (typeof event.cancelable !== 'boolean' || event.cancelable === true)) {
       event.preventDefault();
     }
   };
@@ -17379,7 +17670,7 @@ function (_super) {
 
 var _default = MapBrowserEventHandler;
 exports.default = _default;
-},{"./events/Target.js":"node_modules/ol/events/Target.js","./events/EventType.js":"node_modules/ol/events/EventType.js","./MapBrowserEvent.js":"node_modules/ol/MapBrowserEvent.js","./MapBrowserEventType.js":"node_modules/ol/MapBrowserEventType.js","./pointer/EventType.js":"node_modules/ol/pointer/EventType.js","./has.js":"node_modules/ol/has.js","./events.js":"node_modules/ol/events.js"}],"node_modules/ol/MapEventType.js":[function(require,module,exports) {
+},{"./events/EventType.js":"node_modules/ol/events/EventType.js","./MapBrowserEvent.js":"node_modules/ol/MapBrowserEvent.js","./MapBrowserEventType.js":"node_modules/ol/MapBrowserEventType.js","./pointer/EventType.js":"node_modules/ol/pointer/EventType.js","./events/Target.js":"node_modules/ol/events/Target.js","./has.js":"node_modules/ol/has.js","./functions.js":"node_modules/ol/functions.js","./events.js":"node_modules/ol/events.js"}],"node_modules/ol/MapEventType.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -17416,6 +17707,10 @@ var _default = {
    */
   MOVEEND: 'moveend'
 };
+/***
+ * @typedef {'postrender'|'movestart'|'moveend'} Types
+ */
+
 exports.default = _default;
 },{}],"node_modules/ol/MapProperty.js":[function(require,module,exports) {
 "use strict";
@@ -17466,8 +17761,8 @@ var DROP = Infinity;
  * The implementation is inspired from the Closure Library's Heap class and
  * Python's heapq module.
  *
- * See http://closure-library.googlecode.com/svn/docs/closure_goog_structs_heap.js.source.html
- * and http://hg.python.org/cpython/file/2.7/Lib/heapq.py.
+ * See https://github.com/google/closure-library/blob/master/closure/goog/structs/heap.js
+ * and https://hg.python.org/cpython/file/2.7/Lib/heapq.py.
  *
  * @template T
  */
@@ -17801,6 +18096,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -17907,7 +18203,7 @@ function (_super) {
     event.target;
     var state = tile.getState();
 
-    if (tile.hifi && state === _TileState.default.LOADED || state === _TileState.default.ERROR || state === _TileState.default.EMPTY) {
+    if (state === _TileState.default.LOADED || state === _TileState.default.ERROR || state === _TileState.default.EMPTY) {
       tile.removeEventListener(_EventType.default.CHANGE, this.boundHandleTileChange_);
       var tileKey = tile.getKey();
 
@@ -18080,8 +18376,8 @@ function createExtent(extent, onlyCenter, smooth) {
      * @param {import("./coordinate.js").Coordinate|undefined} center Center.
      * @param {number} resolution Resolution.
      * @param {import("./size.js").Size} size Viewport size; unused if `onlyCenter` was specified.
-     * @param {boolean=} opt_isMoving True if an interaction or animation is in progress.
-     * @param {Array<number>=} opt_centerShift Shift between map center and viewport center.
+     * @param {boolean} [opt_isMoving] True if an interaction or animation is in progress.
+     * @param {Array<number>} [opt_centerShift] Shift between map center and viewport center.
      * @return {import("./coordinate.js").Coordinate|undefined} Center.
      */
     function (center, resolution, size, opt_isMoving, opt_centerShift) {
@@ -18123,7 +18419,7 @@ function createExtent(extent, onlyCenter, smooth) {
   );
 }
 /**
- * @param {import("./coordinate.js").Coordinate=} center Center.
+ * @param {import("./coordinate.js").Coordinate} [center] Center.
  * @return {import("./coordinate.js").Coordinate|undefined} Center.
  */
 
@@ -18202,9 +18498,9 @@ function getSmoothClampedResolution(resolution, maxResolution, minResolution) {
 }
 /**
  * @param {Array<number>} resolutions Resolutions.
- * @param {boolean=} opt_smooth If true, the view will be able to slightly exceed resolution limits. Default: true.
- * @param {import("./extent.js").Extent=} opt_maxExtent Maximum allowed extent.
- * @param {boolean=} opt_showFullExtent If true, allows us to show the full extent. Default: false.
+ * @param {boolean} [opt_smooth] If true, the view will be able to slightly exceed resolution limits. Default: true.
+ * @param {import("./extent.js").Extent} [opt_maxExtent] Maximum allowed extent.
+ * @param {boolean} [opt_showFullExtent] If true, allows us to show the full extent. Default: false.
  * @return {Type} Zoom function.
  */
 
@@ -18215,7 +18511,7 @@ function createSnapToResolutions(resolutions, opt_smooth, opt_maxExtent, opt_sho
      * @param {number|undefined} resolution Resolution.
      * @param {number} direction Direction.
      * @param {import("./size.js").Size} size Viewport size.
-     * @param {boolean=} opt_isMoving True if an interaction or animation is in progress.
+     * @param {boolean} [opt_isMoving] True if an interaction or animation is in progress.
      * @return {number|undefined} Resolution.
      */
     function (resolution, direction, size, opt_isMoving) {
@@ -18251,10 +18547,10 @@ function createSnapToResolutions(resolutions, opt_smooth, opt_maxExtent, opt_sho
 /**
  * @param {number} power Power.
  * @param {number} maxResolution Maximum resolution.
- * @param {number=} opt_minResolution Minimum resolution.
- * @param {boolean=} opt_smooth If true, the view will be able to slightly exceed resolution limits. Default: true.
- * @param {import("./extent.js").Extent=} opt_maxExtent Maximum allowed extent.
- * @param {boolean=} opt_showFullExtent If true, allows us to show the full extent. Default: false.
+ * @param {number} [opt_minResolution] Minimum resolution.
+ * @param {boolean} [opt_smooth] If true, the view will be able to slightly exceed resolution limits. Default: true.
+ * @param {import("./extent.js").Extent} [opt_maxExtent] Maximum allowed extent.
+ * @param {boolean} [opt_showFullExtent] If true, allows us to show the full extent. Default: false.
  * @return {Type} Zoom function.
  */
 
@@ -18265,7 +18561,7 @@ function createSnapToPower(power, maxResolution, opt_minResolution, opt_smooth, 
      * @param {number|undefined} resolution Resolution.
      * @param {number} direction Direction.
      * @param {import("./size.js").Size} size Viewport size.
-     * @param {boolean=} opt_isMoving True if an interaction or animation is in progress.
+     * @param {boolean} [opt_isMoving] True if an interaction or animation is in progress.
      * @return {number|undefined} Resolution.
      */
     function (resolution, direction, size, opt_isMoving) {
@@ -18300,9 +18596,9 @@ function createSnapToPower(power, maxResolution, opt_minResolution, opt_smooth, 
 /**
  * @param {number} maxResolution Max resolution.
  * @param {number} minResolution Min resolution.
- * @param {boolean=} opt_smooth If true, the view will be able to slightly exceed resolution limits. Default: true.
- * @param {import("./extent.js").Extent=} opt_maxExtent Maximum allowed extent.
- * @param {boolean=} opt_showFullExtent If true, allows us to show the full extent. Default: false.
+ * @param {boolean} [opt_smooth] If true, the view will be able to slightly exceed resolution limits. Default: true.
+ * @param {import("./extent.js").Extent} [opt_maxExtent] Maximum allowed extent.
+ * @param {boolean} [opt_showFullExtent] If true, allows us to show the full extent. Default: false.
  * @return {Type} Zoom function.
  */
 
@@ -18313,7 +18609,7 @@ function createMinMaxResolution(maxResolution, minResolution, opt_smooth, opt_ma
      * @param {number|undefined} resolution Resolution.
      * @param {number} direction Direction.
      * @param {import("./size.js").Size} size Viewport size.
-     * @param {boolean=} opt_isMoving True if an interaction or animation is in progress.
+     * @param {boolean} [opt_isMoving] True if an interaction or animation is in progress.
      * @return {number|undefined} Resolution.
      */
     function (resolution, direction, size, opt_isMoving) {
@@ -18388,7 +18684,7 @@ function createSnapToN(n) {
   return (
     /**
      * @param {number|undefined} rotation Rotation.
-     * @param {boolean=} opt_isMoving True if an interaction or animation is in progress.
+     * @param {boolean} [opt_isMoving] True if an interaction or animation is in progress.
      * @return {number|undefined} Rotation.
      */
     function (rotation, opt_isMoving) {
@@ -18406,7 +18702,7 @@ function createSnapToN(n) {
   );
 }
 /**
- * @param {number=} opt_tolerance Tolerance.
+ * @param {number} [opt_tolerance] Tolerance.
  * @return {Type} Rotation constraint.
  */
 
@@ -18416,7 +18712,7 @@ function createSnapToZero(opt_tolerance) {
   return (
     /**
      * @param {number|undefined} rotation Rotation.
-     * @param {boolean=} opt_isMoving True if an interaction or animation is in progress.
+     * @param {boolean} [opt_isMoving] True if an interaction or animation is in progress.
      * @return {number|undefined} Rotation.
      */
     function (rotation, opt_isMoving) {
@@ -18496,7 +18792,7 @@ function linear(t) {
 }
 /**
  * Start slow, speed up, and at the very end slow down again.  This has the
- * same general behavior as {@link module:ol/easing~inAndOut}, but the final
+ * same general behavior as {@link module:ol/easing.inAndOut}, but the final
  * slowdown is delayed.
  * @param {number} t Input between 0 and 1.
  * @return {number} Output between 0 and 1.
@@ -18577,6 +18873,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -18595,25 +18892,25 @@ var __extends = void 0 && (void 0).__extends || function () {
  * An animation configuration
  *
  * @typedef {Object} Animation
- * @property {import("./coordinate.js").Coordinate} [sourceCenter]
- * @property {import("./coordinate.js").Coordinate} [targetCenter]
- * @property {number} [sourceResolution]
- * @property {number} [targetResolution]
- * @property {number} [sourceRotation]
- * @property {number} [targetRotation]
- * @property {import("./coordinate.js").Coordinate} [anchor]
- * @property {number} start
- * @property {number} duration
- * @property {boolean} complete
- * @property {function(number):number} easing
- * @property {function(boolean):void} callback
+ * @property {import("./coordinate.js").Coordinate} [sourceCenter] Source center.
+ * @property {import("./coordinate.js").Coordinate} [targetCenter] Target center.
+ * @property {number} [sourceResolution] Source resolution.
+ * @property {number} [targetResolution] Target resolution.
+ * @property {number} [sourceRotation] Source rotation.
+ * @property {number} [targetRotation] Target rotation.
+ * @property {import("./coordinate.js").Coordinate} [anchor] Anchor.
+ * @property {number} start Start.
+ * @property {number} duration Duration.
+ * @property {boolean} complete Complete.
+ * @property {function(number):number} easing Easing.
+ * @property {function(boolean):void} callback Callback.
  */
 
 /**
  * @typedef {Object} Constraints
- * @property {import("./centerconstraint.js").Type} center
- * @property {import("./resolutionconstraint.js").Type} resolution
- * @property {import("./rotationconstraint.js").Type} rotation
+ * @property {import("./centerconstraint.js").Type} center Center.
+ * @property {import("./resolutionconstraint.js").Type} resolution Resolution.
+ * @property {import("./rotationconstraint.js").Type} rotation Rotation.
  */
 
 /**
@@ -18632,7 +18929,7 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @property {number} [duration] The duration of the animation in milliseconds.
  * By default, there is no animation to the target extent.
  * @property {function(number):number} [easing] The easing function used during
- * the animation (defaults to {@link module:ol/easing~inAndOut}).
+ * the animation (defaults to {@link module:ol/easing.inAndOut}).
  * The function will be called for each frame with a number representing a
  * fraction of the animation's duration.  The function should return a number
  * between 0 and 1 representing the progress toward the destination state.
@@ -18707,9 +19004,11 @@ var __extends = void 0 && (void 0).__extends || function () {
  * alternative to setting this is to set `zoom`. Layer sources will not be
  * fetched if neither this nor `zoom` are defined, but they can be set later
  * with {@link #setZoom} or {@link #setResolution}.
- * @property {Array<number>} [resolutions] Resolutions to determine the
- * resolution constraint. If set the `maxResolution`, `minResolution`,
- * `minZoom`, `maxZoom`, and `zoomFactor` options are ignored.
+ * @property {Array<number>} [resolutions] Resolutions that determine the
+ * zoom levels if specified. The index in the array corresponds to the zoom level,
+ * therefore the resolution values have to be in descending order. It also constrains
+ * the resolution by the minimum and maximum value. If set the `maxResolution`,
+ * `minResolution`, `minZoom`, `maxZoom`, and `zoomFactor` options are ignored.
  * @property {number} [rotation=0] The initial rotation for the view in radians
  * (positive rotation clockwise, 0 means North).
  * @property {number} [zoom] Only used if `resolution` is not defined. Zoom
@@ -18736,7 +19035,7 @@ var __extends = void 0 && (void 0).__extends || function () {
  * during a rotation or resolution animation.
  * @property {number} [duration=1000] The duration of the animation in milliseconds.
  * @property {function(number):number} [easing] The easing function used
- * during the animation (defaults to {@link module:ol/easing~inAndOut}).
+ * during the animation (defaults to {@link module:ol/easing.inAndOut}).
  * The function will be called for each frame with a number representing a
  * fraction of the animation's duration.  The function should return a number
  * between 0 and 1 representing the progress toward the destination state.
@@ -18744,11 +19043,11 @@ var __extends = void 0 && (void 0).__extends || function () {
 
 /**
  * @typedef {Object} State
- * @property {import("./coordinate.js").Coordinate} center
- * @property {import("./proj/Projection.js").default} projection
- * @property {number} resolution
- * @property {number} rotation
- * @property {number} zoom
+ * @property {import("./coordinate.js").Coordinate} center Center.
+ * @property {import("./proj/Projection.js").default} projection Projection.
+ * @property {number} resolution Resolution.
+ * @property {number} rotation Rotation.
+ * @property {number} zoom Zoom.
  */
 
 /**
@@ -18756,6 +19055,17 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @type {number}
  */
 var DEFAULT_MIN_ZOOM = 0;
+/**
+ * @typedef {import("./ObjectEventType").Types|'change:center'|'change:resolution'|'change:rotation'} ViewObjectEventTypes
+ */
+
+/***
+ * @template Return
+ * @typedef {import("./Observable").OnSignature<import("./Observable").EventTypes, import("./events/Event.js").default, Return> &
+ *   import("./Observable").OnSignature<ViewObjectEventTypes, import("./Object").ObjectEvent, Return> &
+ *   import("./Observable").CombinedOnSignature<import("./Observable").EventTypes|ViewObjectEventTypes, Return>} ViewOnSignature
+ */
+
 /**
  * @classdesc
  * A View object represents a simple 2D view of the map.
@@ -18834,13 +19144,28 @@ var View =
 function (_super) {
   __extends(View, _super);
   /**
-   * @param {ViewOptions=} opt_options View options.
+   * @param {ViewOptions} [opt_options] View options.
    */
 
 
   function View(opt_options) {
     var _this = _super.call(this) || this;
+    /***
+     * @type {ViewOnSignature<import("./Observable.js").OnReturn>}
+     */
 
+
+    _this.on;
+    /***
+     * @type {ViewOnSignature<import("./Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {ViewOnSignature<void>}
+     */
+
+    _this.un;
     var options = (0, _obj.assign)({}, opt_options);
     /**
      * @private
@@ -18947,16 +19272,11 @@ function (_super) {
 
     this.resolutions_ = options.resolutions;
     /**
-     * Padding (in css pixels).
-     * If the map viewport is partially covered with other content (overlays) along
-     * its edges, this setting allows to shift the center of the viewport away from that
-     * content. The order of the values in the array is top, right, bottom, left.
-     * The default is no padding, which is equivalent to `[0, 0, 0, 0]`.
      * @type {Array<number>|undefined}
-     * @api
+     * @private
      */
 
-    this.padding = options.padding;
+    this.padding_ = options.padding;
     /**
      * @private
      * @type {number}
@@ -18993,6 +19313,37 @@ function (_super) {
 
     this.options_ = options;
   };
+
+  Object.defineProperty(View.prototype, "padding", {
+    /**
+     * Padding (in css pixels).
+     * If the map viewport is partially covered with other content (overlays) along
+     * its edges, this setting allows to shift the center of the viewport away from that
+     * content. The order of the values in the array is top, right, bottom, left.
+     * The default is no padding, which is equivalent to `[0, 0, 0, 0]`.
+     * @type {Array<number>|undefined}
+     * @api
+     */
+    get: function () {
+      return this.padding_;
+    },
+    set: function (padding) {
+      var oldPadding = this.padding_;
+      this.padding_ = padding;
+      var center = this.getCenter();
+
+      if (center) {
+        var newPadding = padding || [0, 0, 0, 0];
+        oldPadding = oldPadding || [0, 0, 0, 0];
+        var resolution = this.getResolution();
+        var offsetX = resolution / 2 * (newPadding[3] - oldPadding[3] + oldPadding[1] - newPadding[1]);
+        var offsetY = resolution / 2 * (newPadding[0] - oldPadding[0] + oldPadding[2] - newPadding[2]);
+        this.setCenterInternal([center[0] + offsetX, center[1] - offsetY]);
+      }
+    },
+    enumerable: false,
+    configurable: true
+  });
   /**
    * Get an updated version of the view options used to construct the view.  The
    * current resolution (or zoom), center, and rotation are applied to any stored
@@ -19001,7 +19352,6 @@ function (_super) {
    * @param {ViewOptions} newOptions New options to be applied.
    * @return {ViewOptions} New options updated with the current view state.
    */
-
 
   View.prototype.getUpdatedOptions_ = function (newOptions) {
     var options = (0, _obj.assign)({}, this.options_); // preserve resolution (or zoom)
@@ -19366,7 +19716,7 @@ function (_super) {
   /**
    * Returns the current viewport size.
    * @private
-   * @param {number=} opt_rotation Take into account the rotation of the viewport when giving the size
+   * @param {number} [opt_rotation] Take into account the rotation of the viewport when giving the size
    * @return {import("./size.js").Size} Viewport size or `[100, 100]` when no viewport is found.
    */
 
@@ -19387,7 +19737,7 @@ function (_super) {
    * to avoid performance hit and layout reflow.
    * This should be done on map size change.
    * Note: the constraints are not resolved during an animation to avoid stopping it
-   * @param {import("./size.js").Size=} opt_size Viewport size; if undefined, [100, 100] is assumed
+   * @param {import("./size.js").Size} [opt_size] Viewport size; if undefined, [100, 100] is assumed
    */
 
 
@@ -19444,7 +19794,7 @@ function (_super) {
     return this.options_.constrainResolution;
   };
   /**
-   * @param {Array<number>=} opt_hints Destination array.
+   * @param {Array<number>} [opt_hints] Destination array.
    * @return {Array<number>} Hint.
    */
 
@@ -19463,7 +19813,7 @@ function (_super) {
    * The size is the pixel dimensions of the box into which the calculated extent
    * should fit. In most cases you want to get the extent of the entire map,
    * that is `map.getSize()`.
-   * @param {import("./size.js").Size=} opt_size Box pixel size. If not provided, the size
+   * @param {import("./size.js").Size} [opt_size] Box pixel size. If not provided, the size
    * of the map that uses this view will be used.
    * @return {import("./extent.js").Extent} Extent.
    * @api
@@ -19475,14 +19825,14 @@ function (_super) {
     return (0, _proj.toUserExtent)(extent, this.getProjection());
   };
   /**
-   * @param {import("./size.js").Size=} opt_size Box pixel size. If not provided,
+   * @param {import("./size.js").Size} [opt_size] Box pixel size. If not provided,
    * the map's last known viewport size will be used.
    * @return {import("./extent.js").Extent} Extent.
    */
 
 
   View.prototype.calculateExtentInternal = function (opt_size) {
-    var size = opt_size || this.getViewportSize_();
+    var size = opt_size || this.getViewportSizeMinusPadding_();
     var center =
     /** @type {!import("./coordinate.js").Coordinate} */
     this.getCenterInternal();
@@ -19571,7 +19921,7 @@ function (_super) {
     }));
   };
   /**
-   * Set whether the view shoud allow intermediary zoom levels.
+   * Set whether the view should allow intermediary zoom levels.
    * @param {boolean} enabled Whether the resolution is constrained.
    * @api
    */
@@ -19620,7 +19970,7 @@ function (_super) {
   /**
    * Get the resolution for a provided extent (in map units) and size (in pixels).
    * @param {import("./extent.js").Extent} extent Extent.
-   * @param {import("./size.js").Size=} opt_size Box pixel size.
+   * @param {import("./size.js").Size} [opt_size] Box pixel size.
    * @return {number} The resolution at which the provided extent will render at
    *     the given size.
    * @api
@@ -19633,14 +19983,14 @@ function (_super) {
   /**
    * Get the resolution for a provided extent (in map units) and size (in pixels).
    * @param {import("./extent.js").Extent} extent Extent.
-   * @param {import("./size.js").Size=} opt_size Box pixel size.
+   * @param {import("./size.js").Size} [opt_size] Box pixel size.
    * @return {number} The resolution at which the provided extent will render at
    *     the given size.
    */
 
 
   View.prototype.getResolutionForExtentInternal = function (extent, opt_size) {
-    var size = opt_size || this.getViewportSize_();
+    var size = opt_size || this.getViewportSizeMinusPadding_();
     var xResolution = (0, _extent.getWidth)(extent) / size[0];
     var yResolution = (0, _extent.getHeight)(extent) / size[1];
     return Math.max(xResolution, yResolution);
@@ -19648,7 +19998,7 @@ function (_super) {
   /**
    * Return a function that returns a value between 0 and 1 for a
    * resolution. Exponential scaling is assumed.
-   * @param {number=} opt_power Power.
+   * @param {number} [opt_power] Power.
    * @return {function(number): number} Resolution for value function.
    */
 
@@ -19686,7 +20036,7 @@ function (_super) {
   /**
    * Return a function that returns a resolution for a value between
    * 0 and 1. Exponential scaling is assumed.
-   * @param {number=} opt_power Power.
+   * @param {number} [opt_power] Power.
    * @return {function(number): number} Value for resolution function.
    */
 
@@ -19710,14 +20060,14 @@ function (_super) {
   /**
    * Returns the size of the viewport minus padding.
    * @private
-   * @param {number=} opt_rotation Take into account the rotation of the viewport when giving the size
+   * @param {number} [opt_rotation] Take into account the rotation of the viewport when giving the size
    * @return {import("./size.js").Size} Viewport size reduced by the padding.
    */
 
 
   View.prototype.getViewportSizeMinusPadding_ = function (opt_rotation) {
     var size = this.getViewportSize_(opt_rotation);
-    var padding = this.padding;
+    var padding = this.padding_;
 
     if (padding) {
       size = [size[0] - padding[1] - padding[3], size[1] - padding[0] - padding[2]];
@@ -19739,7 +20089,7 @@ function (_super) {
     var center =
     /** @type {import("./coordinate.js").Coordinate} */
     this.getCenterInternal();
-    var padding = this.padding;
+    var padding = this.padding_;
 
     if (padding) {
       var reducedSize = this.getViewportSizeMinusPadding_();
@@ -19830,7 +20180,7 @@ function (_super) {
    * Takes care of the map angle.
    * @param {import("./geom/SimpleGeometry.js").default|import("./extent.js").Extent} geometryOrExtent The geometry or
    *     extent to fit the view to.
-   * @param {FitOptions=} opt_options Options.
+   * @param {FitOptions} [opt_options] Options.
    * @api
    */
 
@@ -19866,8 +20216,37 @@ function (_super) {
     this.fitInternal(geometry, opt_options);
   };
   /**
+   * Calculate rotated extent
    * @param {import("./geom/SimpleGeometry.js").default} geometry The geometry.
-   * @param {FitOptions=} opt_options Options.
+   * @return {import("./extent").Extent} The rotated extent for the geometry.
+   */
+
+
+  View.prototype.rotatedExtentForGeometry = function (geometry) {
+    var rotation = this.getRotation();
+    var cosAngle = Math.cos(rotation);
+    var sinAngle = Math.sin(-rotation);
+    var coords = geometry.getFlatCoordinates();
+    var stride = geometry.getStride();
+    var minRotX = +Infinity;
+    var minRotY = +Infinity;
+    var maxRotX = -Infinity;
+    var maxRotY = -Infinity;
+
+    for (var i = 0, ii = coords.length; i < ii; i += stride) {
+      var rotX = coords[i] * cosAngle - coords[i + 1] * sinAngle;
+      var rotY = coords[i] * sinAngle + coords[i + 1] * cosAngle;
+      minRotX = Math.min(minRotX, rotX);
+      minRotY = Math.min(minRotY, rotY);
+      maxRotX = Math.max(maxRotX, rotX);
+      maxRotY = Math.max(maxRotY, rotY);
+    }
+
+    return [minRotX, minRotY, maxRotX, maxRotY];
+  };
+  /**
+   * @param {import("./geom/SimpleGeometry.js").default} geometry The geometry.
+   * @param {FitOptions} [opt_options] Options.
    */
 
 
@@ -19891,39 +20270,20 @@ function (_super) {
       minResolution = 0;
     }
 
-    var coords = geometry.getFlatCoordinates(); // calculate rotated extent
+    var rotatedExtent = this.rotatedExtentForGeometry(geometry); // calculate resolution
 
-    var rotation = this.getRotation();
-    var cosAngle = Math.cos(-rotation);
-    var sinAngle = Math.sin(-rotation);
-    var minRotX = +Infinity;
-    var minRotY = +Infinity;
-    var maxRotX = -Infinity;
-    var maxRotY = -Infinity;
-    var stride = geometry.getStride();
-
-    for (var i = 0, ii = coords.length; i < ii; i += stride) {
-      var rotX = coords[i] * cosAngle - coords[i + 1] * sinAngle;
-      var rotY = coords[i] * sinAngle + coords[i + 1] * cosAngle;
-      minRotX = Math.min(minRotX, rotX);
-      minRotY = Math.min(minRotY, rotY);
-      maxRotX = Math.max(maxRotX, rotX);
-      maxRotY = Math.max(maxRotY, rotY);
-    } // calculate resolution
-
-
-    var resolution = this.getResolutionForExtentInternal([minRotX, minRotY, maxRotX, maxRotY], [size[0] - padding[1] - padding[3], size[1] - padding[0] - padding[2]]);
+    var resolution = this.getResolutionForExtentInternal(rotatedExtent, [size[0] - padding[1] - padding[3], size[1] - padding[0] - padding[2]]);
     resolution = isNaN(resolution) ? minResolution : Math.max(resolution, minResolution);
     resolution = this.getConstrainedResolution(resolution, nearest ? 0 : 1); // calculate center
 
-    sinAngle = -sinAngle; // go back to original rotation
-
-    var centerRotX = (minRotX + maxRotX) / 2;
-    var centerRotY = (minRotY + maxRotY) / 2;
-    centerRotX += (padding[1] - padding[3]) / 2 * resolution;
-    centerRotY += (padding[0] - padding[2]) / 2 * resolution;
-    var centerX = centerRotX * cosAngle - centerRotY * sinAngle;
-    var centerY = centerRotY * cosAngle + centerRotX * sinAngle;
+    var rotation = this.getRotation();
+    var sinAngle = Math.sin(rotation);
+    var cosAngle = Math.cos(rotation);
+    var centerRot = (0, _extent.getCenter)(rotatedExtent);
+    centerRot[0] += (padding[1] - padding[3]) / 2 * resolution;
+    centerRot[1] += (padding[0] - padding[2]) / 2 * resolution;
+    var centerX = centerRot[0] * cosAngle - centerRot[1] * sinAngle;
+    var centerY = centerRot[1] * cosAngle + centerRot[0] * sinAngle;
     var center = this.getConstrainedCenter([centerX, centerY], resolution);
     var callback = options.callback ? options.callback : _functions.VOID;
 
@@ -19975,7 +20335,7 @@ function (_super) {
 
   View.prototype.calculateCenterShift = function (center, resolution, rotation, size) {
     var centerShift;
-    var padding = this.padding;
+    var padding = this.padding_;
 
     if (padding && center) {
       var reducedSize = this.getViewportSizeMinusPadding_(-rotation);
@@ -20018,7 +20378,7 @@ function (_super) {
    * Multiply the view resolution by a ratio, optionally using an anchor. Any resolution
    * constraint will apply.
    * @param {number} ratio The ratio to apply on the view resolution.
-   * @param {import("./coordinate.js").Coordinate=} opt_anchor The origin of the transformation.
+   * @param {import("./coordinate.js").Coordinate} [opt_anchor] The origin of the transformation.
    * @api
    */
 
@@ -20031,7 +20391,7 @@ function (_super) {
    * Multiply the view resolution by a ratio, optionally using an anchor. Any resolution
    * constraint will apply.
    * @param {number} ratio The ratio to apply on the view resolution.
-   * @param {import("./coordinate.js").Coordinate=} opt_anchor The origin of the transformation.
+   * @param {import("./coordinate.js").Coordinate} [opt_anchor] The origin of the transformation.
    */
 
 
@@ -20051,7 +20411,7 @@ function (_super) {
    * Adds a value to the view zoom level, optionally using an anchor. Any resolution
    * constraint will apply.
    * @param {number} delta Relative value to add to the zoom level.
-   * @param {import("./coordinate.js").Coordinate=} opt_anchor The origin of the transformation.
+   * @param {import("./coordinate.js").Coordinate} [opt_anchor] The origin of the transformation.
    * @api
    */
 
@@ -20063,7 +20423,7 @@ function (_super) {
    * Adds a value to the view rotation, optionally using an anchor. Any rotation
    * constraint will apply.
    * @param {number} delta Relative value to add to the zoom rotation, in radians.
-   * @param {import("./coordinate.js").Coordinate=} opt_anchor The rotation center.
+   * @param {import("./coordinate.js").Coordinate} [opt_anchor] The rotation center.
    * @api
    */
 
@@ -20077,7 +20437,7 @@ function (_super) {
   };
   /**
    * @param {number} delta Relative value to add to the zoom rotation, in radians.
-   * @param {import("./coordinate.js").Coordinate=} opt_anchor The rotation center.
+   * @param {import("./coordinate.js").Coordinate} [opt_anchor] The rotation center.
    */
 
 
@@ -20163,8 +20523,8 @@ function (_super) {
    * Recompute rotation/resolution/center based on target values.
    * Note: we have to compute rotation first, then resolution and center considering that
    * parameters can influence one another in case a view extent constraint is present.
-   * @param {boolean=} opt_doNotCancelAnims Do not cancel animations.
-   * @param {boolean=} opt_forceMoving Apply constraints as if the view is moving.
+   * @param {boolean} [opt_doNotCancelAnims] Do not cancel animations.
+   * @param {boolean} [opt_forceMoving] Apply constraints as if the view is moving.
    * @private
    */
 
@@ -20200,9 +20560,9 @@ function (_super) {
    * This is typically done on interaction end.
    * Note: calling this with a duration of 0 will apply the constrained values straight away,
    * without animation.
-   * @param {number=} opt_duration The animation duration in ms.
-   * @param {number=} opt_resolutionDirection Which direction to zoom.
-   * @param {import("./coordinate.js").Coordinate=} opt_anchor The origin of the transformation.
+   * @param {number} [opt_duration] The animation duration in ms.
+   * @param {number} [opt_resolutionDirection] Which direction to zoom.
+   * @param {import("./coordinate.js").Coordinate} [opt_anchor] The origin of the transformation.
    */
 
 
@@ -20255,9 +20615,9 @@ function (_super) {
   /**
    * Notify the View that an interaction has ended. The view state will be resolved
    * to a stable one if needed (depending on its constraints).
-   * @param {number=} opt_duration Animation duration in ms.
-   * @param {number=} opt_resolutionDirection Which direction to zoom.
-   * @param {import("./coordinate.js").Coordinate=} opt_anchor The origin of the transformation.
+   * @param {number} [opt_duration] Animation duration in ms.
+   * @param {number} [opt_resolutionDirection] Which direction to zoom.
+   * @param {import("./coordinate.js").Coordinate} [opt_anchor] The origin of the transformation.
    * @api
    */
 
@@ -20269,9 +20629,9 @@ function (_super) {
   /**
    * Notify the View that an interaction has ended. The view state will be resolved
    * to a stable one if needed (depending on its constraints).
-   * @param {number=} opt_duration Animation duration in ms.
-   * @param {number=} opt_resolutionDirection Which direction to zoom.
-   * @param {import("./coordinate.js").Coordinate=} opt_anchor The origin of the transformation.
+   * @param {number} [opt_duration] Animation duration in ms.
+   * @param {number} [opt_resolutionDirection] Which direction to zoom.
+   * @param {import("./coordinate.js").Coordinate} [opt_anchor] The origin of the transformation.
    */
 
 
@@ -20282,7 +20642,7 @@ function (_super) {
   /**
    * Get a valid position for the view center according to the current constraints.
    * @param {import("./coordinate.js").Coordinate|undefined} targetCenter Target center position.
-   * @param {number=} opt_targetResolution Target resolution. If not supplied, the current one will be used.
+   * @param {number} [opt_targetResolution] Target resolution. If not supplied, the current one will be used.
    * This is useful to guess a valid center position at a different zoom level.
    * @return {import("./coordinate.js").Coordinate|undefined} Valid center position.
    */
@@ -20295,7 +20655,7 @@ function (_super) {
   /**
    * Get a valid zoom level according to the current view constraints.
    * @param {number|undefined} targetZoom Target zoom.
-   * @param {number=} [opt_direction=0] Indicate which resolution should be used
+   * @param {number} [opt_direction=0] Indicate which resolution should be used
    * by a renderer if the view resolution does not match any resolution of the tile source.
    * If 0, the nearest resolution will be used. If 1, the nearest lower resolution
    * will be used. If -1, the nearest higher resolution will be used.
@@ -20310,7 +20670,7 @@ function (_super) {
   /**
    * Get a valid resolution according to the current view constraints.
    * @param {number|undefined} targetResolution Target resolution.
-   * @param {number=} [opt_direction=0] Indicate which resolution should be used
+   * @param {number} [opt_direction=0] Indicate which resolution should be used
    * by a renderer if the view resolution does not match any resolution of the tile source.
    * If 0, the nearest resolution will be used. If 1, the nearest lower resolution
    * will be used. If -1, the nearest higher resolution will be used.
@@ -20552,7 +20912,7 @@ exports.toSize = toSize;
  * Returns a buffered size.
  * @param {Size} size Size.
  * @param {number} num The amount by which to buffer.
- * @param {Size=} opt_size Optional reusable size array.
+ * @param {Size} [opt_size] Optional reusable size array.
  * @return {Size} The buffered size.
  */
 function buffer(size, num, opt_size) {
@@ -20578,7 +20938,7 @@ function hasArea(size) {
  * Returns a size scaled by a ratio. The result will be an array of integers.
  * @param {Size} size Size.
  * @param {number} ratio Ratio.
- * @param {Size=} opt_size Optional reusable size array.
+ * @param {Size} [opt_size] Optional reusable size array.
  * @return {Size} The scaled size.
  */
 
@@ -20597,7 +20957,7 @@ function scale(size, ratio, opt_size) {
  * `Size` array.
  * (meaning: non-square),
  * @param {number|Size} size Width and height.
- * @param {Size=} opt_size Optional reusable size array.
+ * @param {Size} [opt_size] Optional reusable size array.
  * @return {Size} Size.
  * @api
  */
@@ -20625,7 +20985,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = void 0;
 
-var _Object = _interopRequireWildcard(require("./Object.js"));
+var _Object = _interopRequireDefault(require("./Object.js"));
 
 var _Collection = _interopRequireDefault(require("./Collection.js"));
 
@@ -20677,11 +21037,11 @@ var _events = require("./events.js");
 
 var _dom = require("./dom.js");
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
 function _getRequireWildcardCache(nodeInterop) { if (typeof WeakMap !== "function") return null; var cacheBabelInterop = new WeakMap(); var cacheNodeInterop = new WeakMap(); return (_getRequireWildcardCache = function (nodeInterop) { return nodeInterop ? cacheNodeInterop : cacheBabelInterop; })(nodeInterop); }
 
 function _interopRequireWildcard(obj, nodeInterop) { if (!nodeInterop && obj && obj.__esModule) { return obj; } if (obj === null || typeof obj !== "object" && typeof obj !== "function") { return { default: obj }; } var cache = _getRequireWildcardCache(nodeInterop); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj.default = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var __extends = void 0 && (void 0).__extends || function () {
   var extendStatics = function (d, b) {
@@ -20697,6 +21057,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -20718,20 +21079,20 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @property {number} pixelRatio The pixel ratio of the frame.
  * @property {number} time The time when rendering of the frame was requested.
  * @property {import("./View.js").State} viewState The state of the current view.
- * @property {boolean} animate
- * @property {import("./transform.js").Transform} coordinateToPixelTransform
- * @property {import("rbush").default} declutterTree
- * @property {null|import("./extent.js").Extent} extent
- * @property {number} index
- * @property {Array<import("./layer/Layer.js").State>} layerStatesArray
- * @property {number} layerIndex
- * @property {import("./transform.js").Transform} pixelToCoordinateTransform
- * @property {Array<PostRenderFunction>} postRenderFunctions
- * @property {import("./size.js").Size} size
- * @property {TileQueue} tileQueue
- * @property {!Object<string, Object<string, boolean>>} usedTiles
- * @property {Array<number>} viewHints
- * @property {!Object<string, Object<string, boolean>>} wantedTiles
+ * @property {boolean} animate Animate.
+ * @property {import("./transform.js").Transform} coordinateToPixelTransform CoordinateToPixelTransform.
+ * @property {import("rbush").default} declutterTree DeclutterTree.
+ * @property {null|import("./extent.js").Extent} extent Extent.
+ * @property {number} index Index.
+ * @property {Array<import("./layer/Layer.js").State>} layerStatesArray LayerStatesArray.
+ * @property {number} layerIndex LayerIndex.
+ * @property {import("./transform.js").Transform} pixelToCoordinateTransform PixelToCoordinateTransform.
+ * @property {Array<PostRenderFunction>} postRenderFunctions PostRenderFunctions.
+ * @property {import("./size.js").Size} size Size.
+ * @property {TileQueue} tileQueue TileQueue.
+ * @property {!Object<string, Object<string, boolean>>} usedTiles UsedTiles.
+ * @property {Array<number>} viewHints ViewHints.
+ * @property {!Object<string, Object<string, boolean>>} wantedTiles WantedTiles.
  */
 
 /**
@@ -20753,11 +21114,27 @@ var __extends = void 0 && (void 0).__extends || function () {
 
 /**
  * @typedef {Object} MapOptionsInternal
- * @property {Collection<import("./control/Control.js").default>} [controls]
- * @property {Collection<import("./interaction/Interaction.js").default>} [interactions]
- * @property {HTMLElement|Document} keyboardEventTarget
- * @property {Collection<import("./Overlay.js").default>} overlays
- * @property {Object<string, *>} values
+ * @property {Collection<import("./control/Control.js").default>} [controls] Controls.
+ * @property {Collection<import("./interaction/Interaction.js").default>} [interactions] Interactions.
+ * @property {HTMLElement|Document} keyboardEventTarget KeyboardEventTarget.
+ * @property {Collection<import("./Overlay.js").default>} overlays Overlays.
+ * @property {Object<string, *>} values Values.
+ */
+
+/**
+ * @typedef {import("./ObjectEventType").Types|'change:layergroup'|'change:size'|'change:target'|'change:view'} MapObjectEventTypes
+ */
+
+/***
+ * @template Return
+ * @typedef {import("./Observable").OnSignature<import("./Observable").EventTypes, import("./events/Event.js").default, Return> &
+ *    import("./Observable").OnSignature<MapObjectEventTypes, import("./Object").ObjectEvent, Return> &
+ *    import("./Observable").OnSignature<import("./MapBrowserEventType").Types, import("./MapBrowserEvent").default, Return> &
+ *    import("./Observable").OnSignature<import("./MapEventType").Types, import("./MapEvent").default, Return> &
+ *    import("./Observable").OnSignature<import("./render/EventType").MapRenderEventTypes, import("./render/Event").default, Return> &
+ *    import("./Observable").CombinedOnSignature<import("./Observable").EventTypes|MapObjectEventTypes|
+ *      import("./MapBrowserEventType").Types|import("./MapEventType").Types|
+ *      import("./render/EventType").MapRenderEventTypes, Return>} PluggableMapOnSignature
  */
 
 /**
@@ -20765,12 +21142,12 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @typedef {Object} MapOptions
  * @property {Collection<import("./control/Control.js").default>|Array<import("./control/Control.js").default>} [controls]
  * Controls initially added to the map. If not specified,
- * {@link module:ol/control~defaults} is used.
+ * {@link module:ol/control.defaults} is used.
  * @property {number} [pixelRatio=window.devicePixelRatio] The ratio between
  * physical pixels and device-independent pixels (dips) on the device.
  * @property {Collection<import("./interaction/Interaction.js").default>|Array<import("./interaction/Interaction.js").default>} [interactions]
  * Interactions that are initially added to the map. If not specified,
- * {@link module:ol/interaction~defaults} is used.
+ * {@link module:ol/interaction.defaults} is used.
  * @property {HTMLElement|Document|string} [keyboardEventTarget] The element to
  * listen to keyboard events on. This determines when the `KeyboardPan` and
  * `KeyboardZoom` interactions trigger. For example, if this option is set to
@@ -20801,11 +21178,6 @@ var __extends = void 0 && (void 0).__extends || function () {
  */
 
 /**
- * @fires import("./MapBrowserEvent.js").MapBrowserEvent
- * @fires import("./MapEvent.js").MapEvent
- * @fires import("./render/Event.js").default#precompose
- * @fires import("./render/Event.js").default#postcompose
- * @fires import("./render/Event.js").default#rendercomplete
  * @api
  */
 var PluggableMap =
@@ -20819,7 +21191,22 @@ function (_super) {
 
   function PluggableMap(options) {
     var _this = _super.call(this) || this;
+    /***
+     * @type {PluggableMapOnSignature<import("./Observable.js").OnReturn>}
+     */
 
+
+    _this.on;
+    /***
+     * @type {PluggableMapOnSignature<import("./Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {PluggableMapOnSignature<void>}
+     */
+
+    _this.un;
     var optionsInternal = createOptionsInternal(options);
     /** @private */
 
@@ -21023,13 +21410,13 @@ function (_super) {
 
     _this.tileQueue_ = new _TileQueue.default(_this.getTilePriority.bind(_this), _this.handleTileChange_.bind(_this));
 
-    _this.addEventListener((0, _Object.getChangeEventType)(_MapProperty.default.LAYERGROUP), _this.handleLayerGroupChanged_);
+    _this.addChangeListener(_MapProperty.default.LAYERGROUP, _this.handleLayerGroupChanged_);
 
-    _this.addEventListener((0, _Object.getChangeEventType)(_MapProperty.default.VIEW), _this.handleViewChanged_);
+    _this.addChangeListener(_MapProperty.default.VIEW, _this.handleViewChanged_);
 
-    _this.addEventListener((0, _Object.getChangeEventType)(_MapProperty.default.SIZE), _this.handleSizeChanged_);
+    _this.addChangeListener(_MapProperty.default.SIZE, _this.handleSizeChanged_);
 
-    _this.addEventListener((0, _Object.getChangeEventType)(_MapProperty.default.TARGET), _this.handleTargetChanged_); // setProperties will trigger the rendering of the map if the map
+    _this.addChangeListener(_MapProperty.default.TARGET, _this.handleTargetChanged_); // setProperties will trigger the rendering of the map if the map
     // is "defined" already.
 
 
@@ -21211,7 +21598,7 @@ function (_super) {
    *     the {@link module:ol/layer/Layer layer} of the feature and will be null for
    *     unmanaged layers. To stop detection, callback functions can return a
    *     truthy value.
-   * @param {AtPixelOptions=} opt_options Optional options.
+   * @param {AtPixelOptions} [opt_options] Optional options.
    * @return {T|undefined} Callback result, i.e. the return value of last
    * callback execution, or the first truthy callback return value.
    * @template S,T
@@ -21234,7 +21621,7 @@ function (_super) {
   /**
    * Get all features that intersect a pixel on the viewport.
    * @param {import("./pixel.js").Pixel} pixel Pixel.
-   * @param {AtPixelOptions=} opt_options Optional options.
+   * @param {AtPixelOptions} [opt_options] Optional options.
    * @return {Array<import("./Feature.js").FeatureLike>} The detected features or
    * an empty array if none were found.
    * @api
@@ -21263,7 +21650,7 @@ function (_super) {
    *     [R, G, B, A] pixel values (0 - 255) and will be `null` for layer types
    *     that do not currently support this argument. To stop detection, callback
    *     functions can return a truthy value.
-   * @param {AtPixelOptions=} opt_options Configuration options.
+   * @param {AtPixelOptions} [opt_options] Configuration options.
    * @return {T|undefined} Callback result, i.e. the return value of last
    * callback execution, or the first truthy callback return value.
    * @template S,T
@@ -21285,7 +21672,7 @@ function (_super) {
    * Detect if features intersect a pixel on the viewport. Layers included in the
    * detection can be configured through `opt_layerFilter`.
    * @param {import("./pixel.js").Pixel} pixel Pixel.
-   * @param {AtPixelOptions=} opt_options Optional options.
+   * @param {AtPixelOptions} [opt_options] Optional options.
    * @return {boolean} Is there a feature at the given pixel?
    * @api
    */
@@ -21609,7 +21996,8 @@ function (_super) {
 
 
   PluggableMap.prototype.getOwnerDocument = function () {
-    return this.getTargetElement() ? this.getTargetElement().ownerDocument : document;
+    var targetElement = this.getTargetElement();
+    return targetElement ? targetElement.ownerDocument : document;
   };
   /**
    * @param {import("./Tile.js").default} tile Tile.
@@ -21625,7 +22013,7 @@ function (_super) {
   };
   /**
    * @param {UIEvent} browserEvent Browser event.
-   * @param {string=} opt_type Type.
+   * @param {string} [opt_type] Type.
    */
 
 
@@ -21654,10 +22042,7 @@ function (_super) {
     if (eventType === _EventType2.default.POINTERDOWN || eventType === _EventType.default.WHEEL || eventType === _EventType.default.KEYDOWN) {
       var doc = this.getOwnerDocument();
       var rootNode = this.viewport_.getRootNode ? this.viewport_.getRootNode() : doc;
-      var target = 'host' in rootNode // ShadowRoot
-      ?
-      /** @type {ShadowRoot} */
-      rootNode.elementFromPoint(originalEvent.clientX, originalEvent.clientY) :
+      var target =
       /** @type {Node} */
       originalEvent.target;
 
@@ -21718,7 +22103,7 @@ function (_super) {
         var hints = frameState.viewHints;
 
         if (hints[_ViewHint.default.ANIMATING] || hints[_ViewHint.default.INTERACTING]) {
-          var lowOnFrameBudget = !_has.IMAGE_DECODE && Date.now() - frameState.time > 8;
+          var lowOnFrameBudget = Date.now() - frameState.time > 8;
           maxTotalLoading = lowOnFrameBudget ? 0 : 8;
           maxNewLoads = lowOnFrameBudget ? 0 : 2;
         }
@@ -22092,7 +22477,7 @@ function (_super) {
   };
   /**
    * Set the target element to render this map into.
-   * @param {HTMLElement|string|undefined} target The Element or id of the Element
+   * @param {HTMLElement|string} [target] The Element or id of the Element
    *     that the map is rendered in.
    * @observable
    * @api
@@ -22122,14 +22507,24 @@ function (_super) {
 
   PluggableMap.prototype.updateSize = function () {
     var targetElement = this.getTargetElement();
+    var size = undefined;
 
-    if (!targetElement) {
-      this.setSize(undefined);
-    } else {
+    if (targetElement) {
       var computedStyle = getComputedStyle(targetElement);
-      this.setSize([targetElement.offsetWidth - parseFloat(computedStyle['borderLeftWidth']) - parseFloat(computedStyle['paddingLeft']) - parseFloat(computedStyle['paddingRight']) - parseFloat(computedStyle['borderRightWidth']), targetElement.offsetHeight - parseFloat(computedStyle['borderTopWidth']) - parseFloat(computedStyle['paddingTop']) - parseFloat(computedStyle['paddingBottom']) - parseFloat(computedStyle['borderBottomWidth'])]);
+      var width = targetElement.offsetWidth - parseFloat(computedStyle['borderLeftWidth']) - parseFloat(computedStyle['paddingLeft']) - parseFloat(computedStyle['paddingRight']) - parseFloat(computedStyle['borderRightWidth']);
+      var height = targetElement.offsetHeight - parseFloat(computedStyle['borderTopWidth']) - parseFloat(computedStyle['paddingTop']) - parseFloat(computedStyle['paddingBottom']) - parseFloat(computedStyle['borderBottomWidth']);
+
+      if (!isNaN(width) && !isNaN(height)) {
+        size = [width, height];
+
+        if (!(0, _size.hasArea)(size)) {
+          // eslint-disable-next-line
+          console.warn("No map visible because the map container's width or height are 0.");
+        }
+      }
     }
 
+    this.setSize(size);
     this.updateViewportSize_();
   };
   /**
@@ -22281,6 +22676,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -22500,6 +22896,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -22555,7 +22952,7 @@ var Attribution =
 function (_super) {
   __extends(Attribution, _super);
   /**
-   * @param {Options=} opt_options Attribution options.
+   * @param {Options} [opt_options] Attribution options.
    */
 
 
@@ -22636,16 +23033,28 @@ function (_super) {
     }
 
     var activeLabel = _this.collapsible_ && !_this.collapsed_ ? _this.collapseLabel_ : _this.label_;
-    var button = document.createElement('button');
-    button.setAttribute('type', 'button');
-    button.title = tipLabel;
-    button.appendChild(activeLabel);
-    button.addEventListener(_EventType.default.CLICK, _this.handleClick_.bind(_this), false);
+    /**
+     * @private
+     * @type {HTMLElement}
+     */
+
+    _this.toggleButton_ = document.createElement('button');
+
+    _this.toggleButton_.setAttribute('type', 'button');
+
+    _this.toggleButton_.setAttribute('aria-expanded', String(!_this.collapsed_));
+
+    _this.toggleButton_.title = tipLabel;
+
+    _this.toggleButton_.appendChild(activeLabel);
+
+    _this.toggleButton_.addEventListener(_EventType.default.CLICK, _this.handleClick_.bind(_this), false);
+
     var cssClasses = className + ' ' + _css.CLASS_UNSELECTABLE + ' ' + _css.CLASS_CONTROL + (_this.collapsed_ && _this.collapsible_ ? ' ' + _css.CLASS_COLLAPSED : '') + (_this.collapsible_ ? '' : ' ol-uncollapsible');
     var element = _this.element;
     element.className = cssClasses;
+    element.appendChild(_this.toggleButton_);
     element.appendChild(_this.ulElement_);
-    element.appendChild(button);
     /**
      * A list of currently rendered resolutions.
      * @type {Array<string>}
@@ -22798,6 +23207,7 @@ function (_super) {
     }
 
     this.collapsed_ = !this.collapsed_;
+    this.toggleButton_.setAttribute('aria-expanded', String(!this.collapsed_));
   };
   /**
    * Return `true` if the attribution is collapsible, `false` otherwise.
@@ -22905,6 +23315,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -22949,7 +23360,7 @@ var Rotate =
 function (_super) {
   __extends(Rotate, _super);
   /**
-   * @param {Options=} opt_options Rotate options.
+   * @param {Options} [opt_options] Rotate options.
    */
 
 
@@ -23135,6 +23546,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -23179,7 +23591,7 @@ var Zoom =
 function (_super) {
   __extends(Zoom, _super);
   /**
-   * @param {Options=} opt_options Zoom options.
+   * @param {Options} [opt_options] Zoom options.
    */
 
 
@@ -23311,6 +23723,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -23345,6 +23758,15 @@ var FullScreenEventType = {
    */
   LEAVEFULLSCREEN: 'leavefullscreen'
 };
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes|
+ *     'enterfullscreen'|'leavefullscreen', import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("../ObjectEventType").Types, import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|
+ *     'enterfullscreen'|'leavefullscreen'|import("../ObjectEventType").Types, Return>} FullScreenOnSignature
+ */
+
 /**
  * @typedef {Object} Options
  * @property {string} [className='ol-full-screen'] CSS class name.
@@ -23374,7 +23796,7 @@ var FullScreenEventType = {
  * element introduced using this parameter will be displayed in full screen.
  *
  * When in full screen mode, a close button is shown to exit full screen mode.
- * The [Fullscreen API](http://www.w3.org/TR/fullscreen/) is used to
+ * The [Fullscreen API](https://www.w3.org/TR/fullscreen/) is used to
  * toggle the map in full screen mode.
  *
  * @fires FullScreenEventType#enterfullscreen
@@ -23387,7 +23809,7 @@ var FullScreen =
 function (_super) {
   __extends(FullScreen, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -23399,6 +23821,21 @@ function (_super) {
       element: document.createElement('div'),
       target: options.target
     }) || this;
+    /***
+     * @type {FullScreenOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.on;
+    /***
+     * @type {FullScreenOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {FullScreenOnSignature<void>}
+     */
+
+    _this.un;
     /**
      * @private
      * @type {string}
@@ -23648,8 +24085,6 @@ var _Control = _interopRequireDefault(require("./Control.js"));
 
 var _EventType = _interopRequireDefault(require("../pointer/EventType.js"));
 
-var _Object = require("../Object.js");
-
 var _proj = require("../proj.js");
 
 var _events = require("../events.js");
@@ -23673,6 +24108,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -23692,6 +24128,15 @@ var PROJECTION = 'projection';
  */
 
 var COORDINATE_FORMAT = 'coordinateFormat';
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("../ObjectEventType").Types|
+ *     'change:coordinateFormat'|'change:projection', import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types|
+ *     'change:coordinateFormat'|'change:projection', Return>} MousePositionOnSignature
+ */
+
 /**
  * @typedef {Object} Options
  * @property {string} [className='ol-mouse-position'] CSS class name.
@@ -23702,11 +24147,13 @@ var COORDINATE_FORMAT = 'coordinateFormat';
  * callback.
  * @property {HTMLElement|string} [target] Specify a target if you want the
  * control to be rendered outside of the map's viewport.
- * @property {string} [undefinedHTML='&#160;'] Markup to show when coordinates are not
- * available (e.g. when the pointer leaves the map viewport).  By default, the last position
- * will be replaced with `'&#160;'` (`&nbsp;`) when the pointer leaves the viewport.  To
- * retain the last rendered position, set this option to something falsey (like an empty
- * string `''`).
+ * @property {string|boolean} [placeholder] Markup to show when the mouse position is not
+ * available (e.g. when the pointer leaves the map viewport).  By default, a non-breaking space
+ * is rendered when the mouse leaves the viewport.  To render something else, provide a string
+ * to be used as the text content (e.g. 'no position' or '' for an empty string).  Set the placeholder
+ * to `false` to retain the last position when the mouse leaves the viewport.  In a future release, this
+ * will be the default behavior.
+ * @property {string} [undefinedHTML='&#160;'] This option is deprecated.  Use the `placeholder` option instead.
  */
 
 /**
@@ -23727,7 +24174,7 @@ var MousePosition =
 function (_super) {
   __extends(MousePosition, _super);
   /**
-   * @param {Options=} opt_options Mouse position options.
+   * @param {Options} [opt_options] Mouse position options.
    */
 
 
@@ -23742,8 +24189,23 @@ function (_super) {
       render: options.render,
       target: options.target
     }) || this;
+    /***
+     * @type {MousePositionOnSignature<import("../Observable.js").OnReturn>}
+     */
 
-    _this.addEventListener((0, _Object.getChangeEventType)(PROJECTION), _this.handleProjectionChanged_);
+    _this.on;
+    /***
+     * @type {MousePositionOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {MousePositionOnSignature<void>}
+     */
+
+    _this.un;
+
+    _this.addChangeListener(PROJECTION, _this.handleProjectionChanged_);
 
     if (options.coordinateFormat) {
       _this.setCoordinateFormat(options.coordinateFormat);
@@ -23753,18 +24215,45 @@ function (_super) {
       _this.setProjection(options.projection);
     }
     /**
+     * @type {boolean}
+     * Change this to `false` when removing the deprecated `undefinedHTML` option.
+     */
+
+
+    var renderOnMouseOut = true;
+    /**
+     * @type {string}
+     */
+
+    var placeholder = '&#160;';
+
+    if ('undefinedHTML' in options) {
+      // deprecated behavior
+      if (options.undefinedHTML !== undefined) {
+        placeholder = options.undefinedHTML;
+      }
+
+      renderOnMouseOut = !!placeholder;
+    } else if ('placeholder' in options) {
+      if (options.placeholder === false) {
+        renderOnMouseOut = false;
+      } else {
+        placeholder = String(options.placeholder);
+      }
+    }
+    /**
      * @private
      * @type {string}
      */
 
 
-    _this.undefinedHTML_ = options.undefinedHTML !== undefined ? options.undefinedHTML : '&#160;';
+    _this.placeholder_ = placeholder;
     /**
      * @private
      * @type {boolean}
      */
 
-    _this.renderOnMouseOut_ = !!_this.undefinedHTML_;
+    _this.renderOnMouseOut_ = renderOnMouseOut;
     /**
      * @private
      * @type {string}
@@ -23862,6 +24351,8 @@ function (_super) {
       if (this.renderOnMouseOut_) {
         this.listenerKeys.push((0, _events.listen)(viewport, _EventType.default.POINTEROUT, this.handleMouseOut, this));
       }
+
+      this.updateHTML_(null);
     }
   };
   /**
@@ -23895,7 +24386,7 @@ function (_super) {
 
 
   MousePosition.prototype.updateHTML_ = function (pixel) {
-    var html = this.undefinedHTML_;
+    var html = this.placeholder_;
 
     if (pixel && this.mapProjection_) {
       if (!this.transform_) {
@@ -23960,7 +24451,7 @@ function (_super) {
 
 var _default = MousePosition;
 exports.default = _default;
-},{"./Control.js":"node_modules/ol/control/Control.js","../pointer/EventType.js":"node_modules/ol/pointer/EventType.js","../Object.js":"node_modules/ol/Object.js","../proj.js":"node_modules/ol/proj.js","../events.js":"node_modules/ol/events.js"}],"node_modules/ol/OverlayPositioning.js":[function(require,module,exports) {
+},{"./Control.js":"node_modules/ol/control/Control.js","../pointer/EventType.js":"node_modules/ol/pointer/EventType.js","../proj.js":"node_modules/ol/proj.js","../events.js":"node_modules/ol/events.js"}],"node_modules/ol/OverlayPositioning.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -23998,7 +24489,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.default = void 0;
 
-var _Object = _interopRequireWildcard(require("./Object.js"));
+var _Object = _interopRequireDefault(require("./Object.js"));
 
 var _MapEventType = _interopRequireDefault(require("./MapEventType.js"));
 
@@ -24014,10 +24505,6 @@ var _dom = require("./dom.js");
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-function _getRequireWildcardCache(nodeInterop) { if (typeof WeakMap !== "function") return null; var cacheBabelInterop = new WeakMap(); var cacheNodeInterop = new WeakMap(); return (_getRequireWildcardCache = function (nodeInterop) { return nodeInterop ? cacheNodeInterop : cacheBabelInterop; })(nodeInterop); }
-
-function _interopRequireWildcard(obj, nodeInterop) { if (!nodeInterop && obj && obj.__esModule) { return obj; } if (obj === null || typeof obj !== "object" && typeof obj !== "function") { return { default: obj }; } var cache = _getRequireWildcardCache(nodeInterop); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj.default = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
-
 var __extends = void 0 && (void 0).__extends || function () {
   var extendStatics = function (d, b) {
     extendStatics = Object.setPrototypeOf || {
@@ -24032,6 +24519,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -24098,7 +24586,7 @@ var __extends = void 0 && (void 0).__extends || function () {
  * milliseconds.
  * @property {function(number):number} [easing] The easing function to use. Can
  * be one from {@link module:ol/easing} or a custom function.
- * Default is {@link module:ol/easing~inAndOut}.
+ * Default is {@link module:ol/easing.inAndOut}.
  */
 
 /**
@@ -24119,6 +24607,18 @@ var Property = {
   POSITION: 'position',
   POSITIONING: 'positioning'
 };
+/**
+ * @typedef {import("./ObjectEventType").Types|'change:element'|'change:map'|'change:offset'|'change:position'|
+ *   'change:positioning'} OverlayObjectEventTypes
+ */
+
+/***
+ * @template Return
+ * @typedef {import("./Observable").OnSignature<import("./Observable").EventTypes, import("./events/Event.js").default, Return> &
+ *   import("./Observable").OnSignature<OverlayObjectEventTypes, import("./Object").ObjectEvent, Return> &
+ *   import("./Observable").CombinedOnSignature<import("./Observable").EventTypes|OverlayObjectEventTypes, Return>} OverlayOnSignature
+ */
+
 /**
  * @classdesc
  * An element to be displayed over the map and attached to a single map
@@ -24151,11 +24651,26 @@ function (_super) {
 
   function Overlay(options) {
     var _this = _super.call(this) || this;
+    /***
+     * @type {OverlayOnSignature<import("./Observable").OnReturn>}
+     */
+
+
+    _this.on;
+    /***
+     * @type {OverlayOnSignature<import("./Observable").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {OverlayOnSignature<void>}
+     */
+
+    _this.un;
     /**
      * @protected
      * @type {Options}
      */
-
 
     _this.options = options;
     /**
@@ -24219,15 +24734,15 @@ function (_super) {
 
     _this.mapPostrenderListenerKey = null;
 
-    _this.addEventListener((0, _Object.getChangeEventType)(Property.ELEMENT), _this.handleElementChanged);
+    _this.addChangeListener(Property.ELEMENT, _this.handleElementChanged);
 
-    _this.addEventListener((0, _Object.getChangeEventType)(Property.MAP), _this.handleMapChanged);
+    _this.addChangeListener(Property.MAP, _this.handleMapChanged);
 
-    _this.addEventListener((0, _Object.getChangeEventType)(Property.OFFSET), _this.handleOffsetChanged);
+    _this.addChangeListener(Property.OFFSET, _this.handleOffsetChanged);
 
-    _this.addEventListener((0, _Object.getChangeEventType)(Property.POSITION), _this.handlePositionChanged);
+    _this.addChangeListener(Property.POSITION, _this.handlePositionChanged);
 
-    _this.addEventListener((0, _Object.getChangeEventType)(Property.POSITIONING), _this.handlePositioningChanged);
+    _this.addChangeListener(Property.POSITIONING, _this.handlePositioningChanged);
 
     if (options.element !== undefined) {
       _this.setElement(options.element);
@@ -24450,7 +24965,7 @@ function (_super) {
     this.set(Property.POSITION, position);
   };
   /**
-   * Pan the map so that the overlay is entirely visisble in the current viewport
+   * Pan the map so that the overlay is entirely visible in the current viewport
    * (if necessary) using the configured autoPan parameters
    * @protected
    */
@@ -24464,7 +24979,7 @@ function (_super) {
   /**
    * Pan the map so that the overlay is entirely visible in the current viewport
    * (if necessary).
-   * @param {PanIntoViewOptions=} opt_panIntoViewOptions Options for the pan action
+   * @param {PanIntoViewOptions} [opt_panIntoViewOptions] Options for the pan action
    * @api
    */
 
@@ -24672,8 +25187,6 @@ var _css = require("../css.js");
 
 var _extent = require("../extent.js");
 
-var _Object = require("../Object.js");
-
 var _events = require("../events.js");
 
 var _Polygon = require("../geom/Polygon.js");
@@ -24696,6 +25209,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -24773,7 +25287,7 @@ var OverviewMap =
 function (_super) {
   __extends(OverviewMap, _super);
   /**
-   * @param {Options=} opt_options OverviewMap options.
+   * @param {Options} [opt_options] OverviewMap options.
    */
 
 
@@ -24987,6 +25501,10 @@ function (_super) {
           this.resetExtent_();
         }
       }
+
+      if (!this.ovmap_.isRendered()) {
+        this.updateBoxAfterOvmapIsRendered_();
+      }
     }
   };
   /**
@@ -25008,6 +25526,8 @@ function (_super) {
 
       var newView = this.getMap().getView();
       this.bindView_(newView);
+    } else if (!this.ovmap_.isRendered() && (event.key === _MapProperty.default.TARGET || event.key === _MapProperty.default.SIZE)) {
+      this.ovmap_.updateSize();
     }
   };
   /**
@@ -25026,7 +25546,7 @@ function (_super) {
       this.ovmap_.setView(newView);
     }
 
-    view.addEventListener((0, _Object.getChangeEventType)(_ViewProperty.default.ROTATION), this.boundHandleRotationChanged_); // Sync once with the new view
+    view.addChangeListener(_ViewProperty.default.ROTATION, this.boundHandleRotationChanged_); // Sync once with the new view
 
     this.handleRotationChanged_();
   };
@@ -25038,7 +25558,7 @@ function (_super) {
 
 
   OverviewMap.prototype.unbindView_ = function (view) {
-    view.removeEventListener((0, _Object.getChangeEventType)(_ViewProperty.default.ROTATION), this.boundHandleRotationChanged_);
+    view.removeChangeListener(_ViewProperty.default.ROTATION, this.boundHandleRotationChanged_);
   };
   /**
    * Handle rotation changes to the main map.
@@ -25182,6 +25702,21 @@ function (_super) {
     }
   };
   /**
+   * @private
+   */
+
+
+  OverviewMap.prototype.updateBoxAfterOvmapIsRendered_ = function () {
+    if (this.ovmapPostrenderKey_) {
+      return;
+    }
+
+    this.ovmapPostrenderKey_ = (0, _events.listenOnce)(this.ovmap_, _MapEventType.default.POSTRENDER, function (event) {
+      delete this.ovmapPostrenderKey_;
+      this.updateBox_();
+    }, this);
+  };
+  /**
    * @param {MouseEvent} event The event to handle
    * @private
    */
@@ -25219,9 +25754,7 @@ function (_super) {
 
       ovmap.updateSize();
       this.resetExtent_();
-      (0, _events.listenOnce)(ovmap, _MapEventType.default.POSTRENDER, function (event) {
-        this.updateBox_();
-      }, this);
+      this.updateBoxAfterOvmapIsRendered_();
     }
   };
   /**
@@ -25342,7 +25875,7 @@ function (_super) {
 
 var _default = OverviewMap;
 exports.default = _default;
-},{"../renderer/Composite.js":"node_modules/ol/renderer/Composite.js","./Control.js":"node_modules/ol/control/Control.js","../events/EventType.js":"node_modules/ol/events/EventType.js","../MapEventType.js":"node_modules/ol/MapEventType.js","../MapProperty.js":"node_modules/ol/MapProperty.js","../ObjectEventType.js":"node_modules/ol/ObjectEventType.js","../Overlay.js":"node_modules/ol/Overlay.js","../OverlayPositioning.js":"node_modules/ol/OverlayPositioning.js","../PluggableMap.js":"node_modules/ol/PluggableMap.js","../View.js":"node_modules/ol/View.js","../ViewProperty.js":"node_modules/ol/ViewProperty.js","../css.js":"node_modules/ol/css.js","../extent.js":"node_modules/ol/extent.js","../Object.js":"node_modules/ol/Object.js","../events.js":"node_modules/ol/events.js","../geom/Polygon.js":"node_modules/ol/geom/Polygon.js","../dom.js":"node_modules/ol/dom.js"}],"node_modules/ol/control/ScaleLine.js":[function(require,module,exports) {
+},{"../renderer/Composite.js":"node_modules/ol/renderer/Composite.js","./Control.js":"node_modules/ol/control/Control.js","../events/EventType.js":"node_modules/ol/events/EventType.js","../MapEventType.js":"node_modules/ol/MapEventType.js","../MapProperty.js":"node_modules/ol/MapProperty.js","../ObjectEventType.js":"node_modules/ol/ObjectEventType.js","../Overlay.js":"node_modules/ol/Overlay.js","../OverlayPositioning.js":"node_modules/ol/OverlayPositioning.js","../PluggableMap.js":"node_modules/ol/PluggableMap.js","../View.js":"node_modules/ol/View.js","../ViewProperty.js":"node_modules/ol/ViewProperty.js","../css.js":"node_modules/ol/css.js","../extent.js":"node_modules/ol/extent.js","../events.js":"node_modules/ol/events.js","../geom/Polygon.js":"node_modules/ol/geom/Polygon.js","../dom.js":"node_modules/ol/dom.js"}],"node_modules/ol/control/ScaleLine.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -25360,8 +25893,6 @@ var _proj = require("../proj.js");
 
 var _asserts = require("../asserts.js");
 
-var _Object = require("../Object.js");
-
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var __extends = void 0 && (void 0).__extends || function () {
@@ -25378,6 +25909,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -25422,6 +25954,15 @@ var LEADING_DIGITS = [1, 2, 5];
  */
 
 var DEFAULT_DPI = 25.4 / 0.28;
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("../ObjectEventType").Types|
+ *     'change:units', import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types
+ *     |'change:units', Return>} ScaleLineOnSignature
+ */
+
 /**
  * @typedef {Object} Options
  * @property {string} [className='ol-scale-line'] CSS Class name.
@@ -25461,7 +26002,7 @@ var ScaleLine =
 function (_super) {
   __extends(ScaleLine, _super);
   /**
-   * @param {Options=} opt_options Scale line options.
+   * @param {Options} [opt_options] Scale line options.
    */
 
 
@@ -25475,6 +26016,21 @@ function (_super) {
       render: options.render,
       target: options.target
     }) || this;
+    /***
+     * @type {ScaleLineOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.on;
+    /***
+     * @type {ScaleLineOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {ScaleLineOnSignature<void>}
+     */
+
+    _this.un;
     /**
      * @private
      * @type {HTMLElement}
@@ -25517,7 +26073,7 @@ function (_super) {
 
     _this.renderedHTML_ = '';
 
-    _this.addEventListener((0, _Object.getChangeEventType)(UNITS_PROP), _this.handleUnitsChanged_);
+    _this.addChangeListener(UNITS_PROP, _this.handleUnitsChanged_);
 
     _this.setUnits(options.units || Units.METRIC);
     /**
@@ -25719,7 +26275,7 @@ function (_super) {
    * @param {number} width The current width of the scalebar.
    * @param {number} scale The current scale.
    * @param {string} suffix The suffix to append to the scale text.
-   * @returns {string} The stringified HTML of the scalebar.
+   * @return {string} The stringified HTML of the scalebar.
    */
 
 
@@ -25767,9 +26323,9 @@ function (_super) {
   };
   /**
    * Creates a marker at given position
-   * @param {string} position - The position, absolute or relative
-   * @param {number} i - The iterator
-   * @returns {string} The stringified div containing the marker
+   * @param {string} position The position, absolute or relative
+   * @param {number} i The iterator
+   * @return {string} The stringified div containing the marker
    */
 
 
@@ -25779,12 +26335,12 @@ function (_super) {
   };
   /**
    * Creates the label for a marker marker at given position
-   * @param {number} i - The iterator
-   * @param {number} width - The width the scalebar will currently use
-   * @param {boolean} isLast - Flag indicating if we add the last step text
-   * @param {number} scale - The current scale for the whole scalebar
-   * @param {string} suffix - The suffix for the scale
-   * @returns {string} The stringified div containing the step text
+   * @param {number} i The iterator
+   * @param {number} width The width the scalebar will currently use
+   * @param {boolean} isLast Flag indicating if we add the last step text
+   * @param {number} scale The current scale for the whole scalebar
+   * @param {string} suffix The suffix for the scale
+   * @return {string} The stringified div containing the step text
    */
 
 
@@ -25832,7 +26388,7 @@ function (_super) {
 
 var _default = ScaleLine;
 exports.default = _default;
-},{"./Control.js":"node_modules/ol/control/Control.js","../proj/Units.js":"node_modules/ol/proj/Units.js","../css.js":"node_modules/ol/css.js","../proj.js":"node_modules/ol/proj.js","../asserts.js":"node_modules/ol/asserts.js","../Object.js":"node_modules/ol/Object.js"}],"node_modules/ol/control/ZoomSlider.js":[function(require,module,exports) {
+},{"./Control.js":"node_modules/ol/control/Control.js","../proj/Units.js":"node_modules/ol/proj/Units.js","../css.js":"node_modules/ol/css.js","../proj.js":"node_modules/ol/proj.js","../asserts.js":"node_modules/ol/asserts.js"}],"node_modules/ol/control/ZoomSlider.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -25875,6 +26431,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -25918,7 +26475,7 @@ var ZoomSlider =
 function (_super) {
   __extends(ZoomSlider, _super);
   /**
-   * @param {Options=} opt_options Zoom slider options.
+   * @param {Options} [opt_options] Zoom slider options.
    */
 
 
@@ -25931,7 +26488,7 @@ function (_super) {
       render: options.render
     }) || this;
     /**
-     * @type {!Array.<import("../events.js").EventsKey>}
+     * @type {!Array<import("../events.js").EventsKey>}
      * @private
      */
 
@@ -26053,12 +26610,15 @@ function (_super) {
       return this.sliderInitialized_ = false;
     }
 
+    var containerStyle = getComputedStyle(container);
+    containerWidth -= parseFloat(containerStyle['paddingRight']) + parseFloat(containerStyle['paddingLeft']);
+    containerHeight -= parseFloat(containerStyle['paddingTop']) + parseFloat(containerStyle['paddingBottom']);
     var thumb =
     /** @type {HTMLElement} */
     container.firstElementChild;
-    var computedStyle = getComputedStyle(thumb);
-    var thumbWidth = thumb.offsetWidth + parseFloat(computedStyle['marginRight']) + parseFloat(computedStyle['marginLeft']);
-    var thumbHeight = thumb.offsetHeight + parseFloat(computedStyle['marginTop']) + parseFloat(computedStyle['marginBottom']);
+    var thumbStyle = getComputedStyle(thumb);
+    var thumbWidth = thumb.offsetWidth + parseFloat(thumbStyle['marginRight']) + parseFloat(thumbStyle['marginLeft']);
+    var thumbHeight = thumb.offsetHeight + parseFloat(thumbStyle['marginTop']) + parseFloat(thumbStyle['marginBottom']);
     this.thumbSize_ = [thumbWidth, thumbHeight];
 
     if (containerWidth > containerHeight) {
@@ -26278,6 +26838,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -26316,7 +26877,7 @@ var ZoomToExtent =
 function (_super) {
   __extends(ZoomToExtent, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -26495,7 +27056,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * * {@link module:ol/control/Rotate~Rotate}
  * * {@link module:ol/control/Attribution~Attribution}
  *
- * @param {DefaultsOptions=} opt_options
+ * @param {DefaultsOptions} [opt_options]
  * Defaults options.
  * @return {Collection<import("./control/Control.js").default>}
  * Controls.
@@ -26575,6 +27136,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -26588,6 +27150,15 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @module ol/interaction/Interaction
  */
 
+
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("../ObjectEventType").Types|
+ *     'change:active', import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types|
+ *     'change:active', Return>} InteractionOnSignature
+ */
 
 /**
  * Object literal with config options for interactions.
@@ -26618,12 +27189,28 @@ var Interaction =
 function (_super) {
   __extends(Interaction, _super);
   /**
-   * @param {InteractionOptions=} opt_options Options.
+   * @param {InteractionOptions} [opt_options] Options.
    */
 
 
   function Interaction(opt_options) {
     var _this = _super.call(this) || this;
+    /***
+     * @type {InteractionOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+
+    _this.on;
+    /***
+     * @type {InteractionOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {InteractionOnSignature<void>}
+     */
+
+    _this.un;
 
     if (opt_options && opt_options.handleEvent) {
       _this.handleEvent = opt_options.handleEvent;
@@ -26703,7 +27290,7 @@ function (_super) {
 /**
  * @param {import("../View.js").default} view View.
  * @param {import("../coordinate.js").Coordinate} delta Delta.
- * @param {number=} opt_duration Duration.
+ * @param {number} [opt_duration] Duration.
  */
 
 
@@ -26722,8 +27309,8 @@ function pan(view, delta, opt_duration) {
 /**
  * @param {import("../View.js").default} view View.
  * @param {number} delta Delta from previous zoom level.
- * @param {import("../coordinate.js").Coordinate=} opt_anchor Anchor coordinate in the user projection.
- * @param {number=} opt_duration Duration.
+ * @param {import("../coordinate.js").Coordinate} [opt_anchor] Anchor coordinate in the user projection.
+ * @param {number} [opt_duration] Duration.
  */
 
 
@@ -26783,6 +27370,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -26813,7 +27401,7 @@ var DoubleClickZoom =
 function (_super) {
   __extends(DoubleClickZoom, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -26898,6 +27486,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -26955,7 +27544,7 @@ var PointerInteraction =
 function (_super) {
   __extends(PointerInteraction, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -27470,7 +28059,7 @@ var mouseOnly = function (mapBrowserEvent) {
   /** @type {import("../MapBrowserEvent").default} */
   mapBrowserEvent.originalEvent;
   (0, _asserts.assert)(pointerEvent !== undefined, 56); // mapBrowserEvent must originate from a pointer event
-  // see http://www.w3.org/TR/pointerevents/#widl-PointerEvent-pointerType
+  // see https://www.w3.org/TR/pointerevents/#widl-PointerEvent-pointerType
 
   return pointerEvent.pointerType == 'mouse';
 };
@@ -27490,7 +28079,7 @@ var touchOnly = function (mapBrowserEvent) {
   /** @type {import("../MapBrowserEvent").default} */
   mapBrowserEvent.originalEvent;
   (0, _asserts.assert)(pointerEvt !== undefined, 56); // mapBrowserEvent must originate from a pointer event
-  // see http://www.w3.org/TR/pointerevents/#widl-PointerEvent-pointerType
+  // see https://www.w3.org/TR/pointerevents/#widl-PointerEvent-pointerType
 
   return pointerEvt.pointerType === 'touch';
 };
@@ -27510,14 +28099,14 @@ var penOnly = function (mapBrowserEvent) {
   /** @type {import("../MapBrowserEvent").default} */
   mapBrowserEvent.originalEvent;
   (0, _asserts.assert)(pointerEvt !== undefined, 56); // mapBrowserEvent must originate from a pointer event
-  // see http://www.w3.org/TR/pointerevents/#widl-PointerEvent-pointerType
+  // see https://www.w3.org/TR/pointerevents/#widl-PointerEvent-pointerType
 
   return pointerEvt.pointerType === 'pen';
 };
 /**
  * Return `true` if the event originates from a primary pointer in
  * contact with the surface or if the left mouse button is pressed.
- * See http://www.w3.org/TR/pointerevents/#button-states.
+ * See https://www.w3.org/TR/pointerevents/#button-states.
  *
  * @param {import("../MapBrowserEvent.js").default} mapBrowserEvent Map browser event.
  * @return {boolean} True if the event originates from a primary pointer.
@@ -27573,6 +28162,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -27591,7 +28181,7 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @typedef {Object} Options
  * @property {import("../events/condition.js").Condition} [condition] A function that takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a boolean
  * to indicate whether that event should be handled.
- * Default is {@link module:ol/events/condition~noModifierKeys} and {@link module:ol/events/condition~primaryAction}.
+ * Default is {@link module:ol/events/condition.noModifierKeys} and {@link module:ol/events/condition.primaryAction}.
  * @property {boolean} [onFocusOnly=false] When the map's target has a `tabindex` attribute set,
  * the interaction will only handle events when the map has the focus.
  * @property {import("../Kinetic.js").default} [kinetic] Kinetic inertia to apply to the pan.
@@ -27607,7 +28197,7 @@ var DragPan =
 function (_super) {
   __extends(DragPan, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -27800,6 +28390,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -27819,7 +28410,7 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @property {import("../events/condition.js").Condition} [condition] A function that takes an
  * {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a boolean
  * to indicate whether that event should be handled.
- * Default is {@link module:ol/events/condition~altShiftKeysOnly}.
+ * Default is {@link module:ol/events/condition.altShiftKeysOnly}.
  * @property {number} [duration=250] Animation duration in milliseconds.
  */
 
@@ -27837,7 +28428,7 @@ var DragRotate =
 function (_super) {
   __extends(DragRotate, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -27972,6 +28563,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -28150,6 +28742,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -28262,6 +28855,16 @@ function (_super) {
 
 exports.DragBoxEvent = DragBoxEvent;
 
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("../ObjectEventType").Types|
+ *     'change:active', import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").OnSignature<'boxcancel'|'boxdrag'|'boxend', DragBoxEvent, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types|
+ *     'change:active'|'boxcancel'|'boxdrag'|'boxend', Return>} DragBoxOnSignature
+ */
+
 /**
  * @classdesc
  * Allows the user to draw a vector box by clicking and dragging on the map,
@@ -28279,13 +28882,28 @@ var DragBox =
 function (_super) {
   __extends(DragBox, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
   function DragBox(opt_options) {
     var _this = _super.call(this) || this;
+    /***
+     * @type {DragBoxOnSignature<import("../Observable").OnReturn>}
+     */
 
+
+    _this.on;
+    /***
+     * @type {DragBoxOnSignature<import("../Observable").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {DragBoxOnSignature<void>}
+     */
+
+    _this.un;
     var options = opt_options ? opt_options : {};
     /**
      * @type {import("../render/Box.js").default}
@@ -28419,8 +29037,6 @@ exports.default = void 0;
 
 var _DragBox = _interopRequireDefault(require("./DragBox.js"));
 
-var _extent = require("../extent.js");
-
 var _easing = require("../easing.js");
 
 var _condition = require("../events/condition.js");
@@ -28441,6 +29057,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -28462,7 +29079,7 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @property {import("../events/condition.js").Condition} [condition] A function that
  * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event should be handled.
- * Default is {@link module:ol/events/condition~shiftKeyOnly}.
+ * Default is {@link module:ol/events/condition.shiftKeyOnly}.
  * @property {number} [duration=200] Animation duration in milliseconds.
  * @property {boolean} [out=false] Use interaction for zooming out.
  * @property {number} [minArea=64] The minimum area of the box in pixel, this value is used by the parent default
@@ -28484,7 +29101,7 @@ var DragZoom =
 function (_super) {
   __extends(DragZoom, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -28523,24 +29140,17 @@ function (_super) {
     var view =
     /** @type {!import("../View.js").default} */
     map.getView();
-    var size =
-    /** @type {!import("../size.js").Size} */
-    map.getSize();
-    var extent = this.getGeometry().getExtent();
+    var geometry = this.getGeometry();
 
     if (this.out_) {
-      var mapExtent = view.calculateExtentInternal(size);
-      var boxPixelExtent = (0, _extent.createOrUpdateFromCoordinates)([map.getPixelFromCoordinateInternal((0, _extent.getBottomLeft)(extent)), map.getPixelFromCoordinateInternal((0, _extent.getTopRight)(extent))]);
-      var factor = view.getResolutionForExtentInternal(boxPixelExtent, size);
-      (0, _extent.scaleFromCenter)(mapExtent, 1 / factor);
-      extent = mapExtent;
+      var rotatedExtent = view.rotatedExtentForGeometry(geometry);
+      var resolution = view.getResolutionForExtentInternal(rotatedExtent);
+      var factor = view.getResolution() / resolution;
+      geometry = geometry.clone();
+      geometry.scale(factor * factor);
     }
 
-    var resolution = view.getConstrainedResolution(view.getResolutionForExtentInternal(extent, size));
-    var center = view.getConstrainedCenter((0, _extent.getCenter)(extent), resolution);
-    view.animateInternal({
-      resolution: resolution,
-      center: center,
+    view.fitInternal(geometry, {
       duration: this.duration_,
       easing: _easing.easeOut
     });
@@ -28551,7 +29161,7 @@ function (_super) {
 
 var _default = DragZoom;
 exports.default = _default;
-},{"./DragBox.js":"node_modules/ol/interaction/DragBox.js","../extent.js":"node_modules/ol/extent.js","../easing.js":"node_modules/ol/easing.js","../events/condition.js":"node_modules/ol/events/condition.js"}],"node_modules/ol/events/KeyCode.js":[function(require,module,exports) {
+},{"./DragBox.js":"node_modules/ol/interaction/DragBox.js","../easing.js":"node_modules/ol/easing.js","../events/condition.js":"node_modules/ol/events/condition.js"}],"node_modules/ol/events/KeyCode.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -28612,6 +29222,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -28631,8 +29242,8 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @property {import("../events/condition.js").Condition} [condition] A function that
  * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event should be handled. Default is
- * {@link module:ol/events/condition~noModifierKeys} and
- * {@link module:ol/events/condition~targetNotEditable}.
+ * {@link module:ol/events/condition.noModifierKeys} and
+ * {@link module:ol/events/condition.targetNotEditable}.
  * @property {number} [duration=100] Animation duration in milliseconds.
  * @property {number} [pixelDelta=128] The amount of pixels to pan on each key
  * press.
@@ -28656,7 +29267,7 @@ var KeyboardPan =
 function (_super) {
   __extends(KeyboardPan, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -28780,6 +29391,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -28800,7 +29412,7 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @property {import("../events/condition.js").Condition} [condition] A function that
  * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event should be handled. Default is
- * {@link module:ol/events/condition~targetNotEditable}.
+ * {@link module:ol/events/condition.targetNotEditable}.
  * @property {number} [delta=1] The zoom level delta on each key press.
  */
 
@@ -28822,7 +29434,7 @@ var KeyboardZoom =
 function (_super) {
   __extends(KeyboardZoom, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -29072,6 +29684,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -29098,7 +29711,7 @@ var Mode = {
  * @property {import("../events/condition.js").Condition} [condition] A function that
  * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event should be handled. Default is
- * {@link module:ol/events/condition~always}.
+ * {@link module:ol/events/condition.always}.
  * @property {boolean} [onFocusOnly=false] When the map's target has a `tabindex` attribute set,
  * the interaction will only handle events when the map has the focus.
  * @property {number} [maxDelta=1] Maximum mouse wheel delta.
@@ -29125,7 +29738,7 @@ var MouseWheelZoom =
 function (_super) {
   __extends(MouseWheelZoom, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -29406,6 +30019,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -29438,7 +30052,7 @@ var PinchRotate =
 function (_super) {
   __extends(PinchRotate, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -29616,6 +30230,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -29646,7 +30261,7 @@ var PinchZoom =
 function (_super) {
   __extends(PinchZoom, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -29815,6 +30430,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -29862,8 +30478,8 @@ function (_super) {
   /**
    * @param {DragAndDropEventType} type Type.
    * @param {File} file File.
-   * @param {Array<import("../Feature.js").default>=} opt_features Features.
-   * @param {import("../proj/Projection.js").default=} opt_projection Projection.
+   * @param {Array<import("../Feature.js").default>} [opt_features] Features.
+   * @param {import("../proj/Projection.js").default} [opt_projection] Projection.
    */
 
 
@@ -29899,6 +30515,16 @@ function (_super) {
 
 exports.DragAndDropEvent = DragAndDropEvent;
 
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("../ObjectEventType").Types|
+ *     'change:active', import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").OnSignature<'addfeatures', DragAndDropEvent, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types|
+ *     'change:active'|'addfeatures', Return>} DragAndDropOnSignature
+ */
+
 /**
  * @classdesc
  * Handles input of vector data by drag and drop.
@@ -29916,7 +30542,7 @@ var DragAndDrop =
 function (_super) {
   __extends(DragAndDrop, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -29927,6 +30553,21 @@ function (_super) {
     _this = _super.call(this, {
       handleEvent: _functions.TRUE
     }) || this;
+    /***
+     * @type {DragAndDropOnSignature<import("../Observable").OnReturn>}
+     */
+
+    _this.on;
+    /***
+     * @type {DragAndDropOnSignature<import("../Observable").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {DragAndDropOnSignature<void>}
+     */
+
+    _this.un;
     /**
      * @private
      * @type {boolean}
@@ -30169,6 +30810,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -30188,7 +30830,7 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @property {import("../events/condition.js").Condition} [condition] A function that
  * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event should be handled.
- * Default is {@link module:ol/events/condition~shiftKeyOnly}.
+ * Default is {@link module:ol/events/condition.shiftKeyOnly}.
  * @property {number} [duration=400] Animation duration in milliseconds.
  */
 
@@ -30208,7 +30850,7 @@ var DragRotateAndZoom =
 function (_super) {
   __extends(DragRotateAndZoom, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -30368,6 +31010,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -30396,8 +31039,8 @@ function (_super) {
    * @param {!import("../coordinate.js").Coordinate} center Center.
    *     For internal use, flat coordinates in combination with `opt_layout` and no
    *     `opt_radius` are also accepted.
-   * @param {number=} opt_radius Radius.
-   * @param {import("./GeometryLayout.js").default=} opt_layout Layout.
+   * @param {number} [opt_radius] Radius.
+   * @param {import("./GeometryLayout.js").default} [opt_layout] Layout.
    */
 
 
@@ -30580,7 +31223,7 @@ function (_super) {
    * number) of the circle.
    * @param {!import("../coordinate.js").Coordinate} center Center.
    * @param {number} radius Radius.
-   * @param {import("./GeometryLayout.js").default=} opt_layout Layout.
+   * @param {import("./GeometryLayout.js").default} [opt_layout] Layout.
    * @api
    */
 
@@ -30727,11 +31370,11 @@ var _size = require("../size.js");
 
 /**
  * @typedef {Object} Options
- * @property {number} opacity
- * @property {boolean} rotateWithView
- * @property {number} rotation
- * @property {number|import("../size.js").Size} scale
- * @property {Array<number>} displacement
+ * @property {number} opacity Opacity.
+ * @property {boolean} rotateWithView If the image should get rotated with the view.
+ * @property {number} rotation Rotation.
+ * @property {number|import("../size.js").Size} scale Scale.
+ * @property {Array<number>} displacement Displacement.
  */
 
 /**
@@ -30892,10 +31535,11 @@ function () {
   ImageStyle.prototype.getHitDetectionImage = function () {
     return (0, _util.abstract)();
   };
-  /*
+  /**
    * Get the image pixel ratio.
    * @param {number} pixelRatio Pixel ratio.
-   * */
+   * @return {number} Pixel ratio.
+   */
 
 
   ImageStyle.prototype.getPixelRatio = function (pixelRatio) {
@@ -30917,15 +31561,6 @@ function () {
 
 
   ImageStyle.prototype.getImageSize = function () {
-    return (0, _util.abstract)();
-  };
-  /**
-   * @abstract
-   * @return {import("../size.js").Size} Size of the hit-detection image.
-   */
-
-
-  ImageStyle.prototype.getHitDetectionImageSize = function () {
     return (0, _util.abstract)();
   };
   /**
@@ -31103,6 +31738,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -31120,8 +31756,8 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @property {number} points Number of points for stars and regular polygons. In case of a polygon, the number of points
  * is the number of sides.
  * @property {number} [radius] Radius of a regular polygon.
- * @property {number} [radius1] Outer radius of a star.
- * @property {number} [radius2] Inner radius of a star.
+ * @property {number} [radius1] First radius of a star. Ignored if radius is set.
+ * @property {number} [radius2] Second radius of a star.
  * @property {number} [angle=0] Shape's angle in radians. A value of 0 will have one of the shape's point facing up.
  * @property {Array<number>} [displacement=[0,0]] Displacement of the shape
  * @property {import("./Stroke.js").default} [stroke] Stroke style.
@@ -31133,14 +31769,13 @@ var __extends = void 0 && (void 0).__extends || function () {
 
 /**
  * @typedef {Object} RenderOptions
- * @property {import("../colorlike.js").ColorLike} [strokeStyle]
- * @property {number} strokeWidth
- * @property {number} size
- * @property {CanvasLineCap} lineCap
- * @property {Array<number>} lineDash
- * @property {number} lineDashOffset
- * @property {CanvasLineJoin} lineJoin
- * @property {number} miterLimit
+ * @property {import("../colorlike.js").ColorLike} [strokeStyle] StrokeStyle.
+ * @property {number} strokeWidth StrokeWidth.
+ * @property {number} size Size.
+ * @property {Array<number>} lineDash LineDash.
+ * @property {number} lineDashOffset LineDashOffset.
+ * @property {CanvasLineJoin} lineJoin LineJoin.
+ * @property {number} miterLimit MiterLimit.
  */
 
 /**
@@ -31179,7 +31814,7 @@ function (_super) {
      * @type {Object<number, HTMLCanvasElement>}
      */
 
-    _this.canvas_ = {};
+    _this.canvas_ = undefined;
     /**
      * @private
      * @type {HTMLCanvasElement}
@@ -31242,16 +31877,10 @@ function (_super) {
     _this.size_ = null;
     /**
      * @private
-     * @type {import("../size.js").Size}
+     * @type {RenderOptions}
      */
 
-    _this.imageSize_ = null;
-    /**
-     * @private
-     * @type {import("../size.js").Size}
-     */
-
-    _this.hitDetectionImageSize_ = null;
+    _this.renderOptions_ = null;
 
     _this.render();
 
@@ -31319,8 +31948,7 @@ function (_super) {
 
   RegularShape.prototype.getHitDetectionImage = function () {
     if (!this.hitDetectionCanvas_) {
-      var renderOptions = this.createRenderOptions();
-      this.createHitDetectionCanvas_(renderOptions);
+      this.createHitDetectionCanvas_(this.renderOptions_);
     }
 
     return this.hitDetectionCanvas_;
@@ -31334,19 +31962,23 @@ function (_super) {
 
 
   RegularShape.prototype.getImage = function (pixelRatio) {
-    if (!this.canvas_[pixelRatio || 1]) {
-      var renderOptions = this.createRenderOptions();
-      var context = (0, _dom.createCanvasContext2D)(renderOptions.size * pixelRatio || 1, renderOptions.size * pixelRatio || 1);
-      this.draw_(renderOptions, context, 0, 0, pixelRatio || 1);
-      this.canvas_[pixelRatio || 1] = context.canvas;
+    var image = this.canvas_[pixelRatio];
+
+    if (!image) {
+      var renderOptions = this.renderOptions_;
+      var context = (0, _dom.createCanvasContext2D)(renderOptions.size * pixelRatio, renderOptions.size * pixelRatio);
+      this.draw_(renderOptions, context, pixelRatio);
+      image = context.canvas;
+      this.canvas_[pixelRatio] = image;
     }
 
-    return this.canvas_[pixelRatio || 1];
+    return image;
   };
-  /*
+  /**
    * Get the image pixel ratio.
    * @param {number} pixelRatio Pixel ratio.
-   * */
+   * @return {number} Pixel ratio.
+   */
 
 
   RegularShape.prototype.getPixelRatio = function (pixelRatio) {
@@ -31358,15 +31990,7 @@ function (_super) {
 
 
   RegularShape.prototype.getImageSize = function () {
-    return this.imageSize_;
-  };
-  /**
-   * @return {import("../size.js").Size} Size of the hit-detection image.
-   */
-
-
-  RegularShape.prototype.getHitDetectionImageSize = function () {
-    return this.hitDetectionImageSize_;
+    return this.size_;
   };
   /**
    * @return {import("../ImageState.js").default} Image state.
@@ -31455,13 +32079,107 @@ function (_super) {
 
   RegularShape.prototype.unlistenImageChange = function (listener) {};
   /**
-   * @returns {RenderOptions}  The render options
+   * Calculate additional canvas size needed for the miter.
+   * @param {string} lineJoin Line join
+   * @param {number} strokeWidth Stroke width
+   * @param {number} miterLimit Miter limit
+   * @return {number} Additional canvas size needed
+   * @private
+   */
+
+
+  RegularShape.prototype.calculateLineJoinSize_ = function (lineJoin, strokeWidth, miterLimit) {
+    if (strokeWidth === 0 || this.points_ === Infinity || lineJoin !== 'bevel' && lineJoin !== 'miter') {
+      return strokeWidth;
+    } // m  | ^
+    // i  | |\                  .
+    // t >|  #\
+    // e  | |\ \              .
+    // r      \s\
+    //      |  \t\          .                 .
+    //          \r\                      .   .
+    //      |    \o\      .          .  . . .
+    //          e \k\            .  .    . .
+    //      |      \e\  .    .  .       . .
+    //       d      \ \  .  .          . .
+    //      | _ _a_ _\#  .            . .
+    //   r1          / `             . .
+    //      |                       . .
+    //       b     /               . .
+    //      |                     . .
+    //           / r2            . .
+    //      |                        .   .
+    //         /                           .   .
+    //      |α                                   .   .
+    //       /                                         .   .
+    //      ° center
+
+
+    var r1 = this.radius_;
+    var r2 = this.radius2_ === undefined ? r1 : this.radius2_;
+
+    if (r1 < r2) {
+      var tmp = r1;
+      r1 = r2;
+      r2 = tmp;
+    }
+
+    var points = this.radius2_ === undefined ? this.points_ : this.points_ * 2;
+    var alpha = 2 * Math.PI / points;
+    var a = r2 * Math.sin(alpha);
+    var b = Math.sqrt(r2 * r2 - a * a);
+    var d = r1 - b;
+    var e = Math.sqrt(a * a + d * d);
+    var miterRatio = e / a;
+
+    if (lineJoin === 'miter' && miterRatio <= miterLimit) {
+      return miterRatio * strokeWidth;
+    } // Calculate the distnce from center to the stroke corner where
+    // it was cut short because of the miter limit.
+    //              l
+    //        ----+---- <= distance from center to here is maxr
+    //       /####|k ##\
+    //      /#####^#####\
+    //     /#### /+\# s #\
+    //    /### h/+++\# t #\
+    //   /### t/+++++\# r #\
+    //  /### a/+++++++\# o #\
+    // /### p/++ fill +\# k #\
+    ///#### /+++++^+++++\# e #\
+    //#####/+++++/+\+++++\#####\
+
+
+    var k = strokeWidth / 2 / miterRatio;
+    var l = strokeWidth / 2 * (d / e);
+    var maxr = Math.sqrt((r1 + k) * (r1 + k) + l * l);
+    var bevelAdd = maxr - r1;
+
+    if (this.radius2_ === undefined || lineJoin === 'bevel') {
+      return bevelAdd * 2;
+    } // If outer miter is over the miter limit the inner miter may reach through the
+    // center and be longer than the bevel, same calculation as above but swap r1 / r2.
+
+
+    var aa = r1 * Math.sin(alpha);
+    var bb = Math.sqrt(r1 * r1 - aa * aa);
+    var dd = r2 - bb;
+    var ee = Math.sqrt(aa * aa + dd * dd);
+    var innerMiterRatio = ee / aa;
+
+    if (innerMiterRatio <= miterLimit) {
+      var innerLength = innerMiterRatio * strokeWidth / 2 - r2 - r1;
+      return 2 * Math.max(bevelAdd, innerLength);
+    }
+
+    return bevelAdd * 2;
+  };
+  /**
+   * @return {RenderOptions}  The render options
    * @protected
    */
 
 
   RegularShape.prototype.createRenderOptions = function () {
-    var lineCap = _canvas.defaultLineCap;
     var lineJoin = _canvas.defaultLineJoin;
     var miterLimit = 0;
     var lineDash = null;
@@ -31491,12 +32209,6 @@ function (_super) {
         lineJoin = _canvas.defaultLineJoin;
       }
 
-      lineCap = this.stroke_.getLineCap();
-
-      if (lineCap === undefined) {
-        lineCap = _canvas.defaultLineCap;
-      }
-
       miterLimit = this.stroke_.getMiterLimit();
 
       if (miterLimit === undefined) {
@@ -31504,12 +32216,13 @@ function (_super) {
       }
     }
 
-    var size = 2 * (this.radius_ + strokeWidth) + 1;
+    var add = this.calculateLineJoinSize_(lineJoin, strokeWidth, miterLimit);
+    var maxRadius = Math.max(this.radius_, this.radius2_ || 0);
+    var size = Math.ceil(2 * maxRadius + add);
     return {
       strokeStyle: strokeStyle,
       strokeWidth: strokeWidth,
       size: size,
-      lineCap: lineCap,
       lineDash: lineDash,
       lineDashOffset: lineDashOffset,
       lineJoin: lineJoin,
@@ -31522,55 +32235,26 @@ function (_super) {
 
 
   RegularShape.prototype.render = function () {
-    var renderOptions = this.createRenderOptions();
-    var context = (0, _dom.createCanvasContext2D)(renderOptions.size, renderOptions.size);
-    this.draw_(renderOptions, context, 0, 0, 1);
-    this.canvas_ = {};
-    this.canvas_[1] = context.canvas; // canvas.width and height are rounded to the closest integer
-
-    var size = context.canvas.width;
-    var imageSize = size;
+    this.renderOptions_ = this.createRenderOptions();
+    var size = this.renderOptions_.size;
     var displacement = this.getDisplacement();
-    this.hitDetectionImageSize_ = [renderOptions.size, renderOptions.size];
-    this.createHitDetectionCanvas_(renderOptions);
+    this.canvas_ = {};
     this.anchor_ = [size / 2 - displacement[0], size / 2 + displacement[1]];
     this.size_ = [size, size];
-    this.imageSize_ = [imageSize, imageSize];
   };
   /**
    * @private
    * @param {RenderOptions} renderOptions Render options.
    * @param {CanvasRenderingContext2D} context The rendering context.
-   * @param {number} x The origin for the symbol (x).
-   * @param {number} y The origin for the symbol (y).
    * @param {number} pixelRatio The pixel ratio.
    */
 
 
-  RegularShape.prototype.draw_ = function (renderOptions, context, x, y, pixelRatio) {
-    var i, angle0, radiusC; // reset transform
+  RegularShape.prototype.draw_ = function (renderOptions, context, pixelRatio) {
+    context.scale(pixelRatio, pixelRatio); // set origin to canvas center
 
-    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0); // then move to (x, y)
-
-    context.translate(x, y);
-    context.beginPath();
-    var points = this.points_;
-
-    if (points === Infinity) {
-      context.arc(renderOptions.size / 2, renderOptions.size / 2, this.radius_, 0, 2 * Math.PI, true);
-    } else {
-      var radius2 = this.radius2_ !== undefined ? this.radius2_ : this.radius_;
-
-      if (radius2 !== this.radius_) {
-        points = 2 * points;
-      }
-
-      for (i = 0; i <= points; i++) {
-        angle0 = i * 2 * Math.PI / points - Math.PI / 2 + this.angle_;
-        radiusC = i % 2 === 0 ? this.radius_ : radius2;
-        context.lineTo(renderOptions.size / 2 + radiusC * Math.cos(angle0), renderOptions.size / 2 + radiusC * Math.sin(angle0));
-      }
-    }
+    context.translate(renderOptions.size / 2, renderOptions.size / 2);
+    this.createPath_(context);
 
     if (this.fill_) {
       var color = this.fill_.getColor();
@@ -31592,13 +32276,10 @@ function (_super) {
         context.lineDashOffset = renderOptions.lineDashOffset;
       }
 
-      context.lineCap = renderOptions.lineCap;
       context.lineJoin = renderOptions.lineJoin;
       context.miterLimit = renderOptions.miterLimit;
       context.stroke();
     }
-
-    context.closePath();
   };
   /**
    * @private
@@ -31607,8 +32288,6 @@ function (_super) {
 
 
   RegularShape.prototype.createHitDetectionCanvas_ = function (renderOptions) {
-    this.hitDetectionCanvas_ = this.getImage(1);
-
     if (this.fill_) {
       var color = this.fill_.getColor(); // determine if fill is transparent (or pattern or gradient)
 
@@ -31629,45 +32308,56 @@ function (_super) {
         // with a default fill style
         var context = (0, _dom.createCanvasContext2D)(renderOptions.size, renderOptions.size);
         this.hitDetectionCanvas_ = context.canvas;
-        this.drawHitDetectionCanvas_(renderOptions, context, 0, 0);
+        this.drawHitDetectionCanvas_(renderOptions, context);
       }
+    }
+
+    if (!this.hitDetectionCanvas_) {
+      this.hitDetectionCanvas_ = this.getImage(1);
+    }
+  };
+  /**
+   * @private
+   * @param {CanvasRenderingContext2D} context The context to draw in.
+   */
+
+
+  RegularShape.prototype.createPath_ = function (context) {
+    var points = this.points_;
+    var radius = this.radius_;
+
+    if (points === Infinity) {
+      context.arc(0, 0, radius, 0, 2 * Math.PI);
+    } else {
+      var radius2 = this.radius2_ === undefined ? radius : this.radius2_;
+
+      if (this.radius2_ !== undefined) {
+        points *= 2;
+      }
+
+      var startAngle = this.angle_ - Math.PI / 2;
+      var step = 2 * Math.PI / points;
+
+      for (var i = 0; i < points; i++) {
+        var angle0 = startAngle + i * step;
+        var radiusC = i % 2 === 0 ? radius : radius2;
+        context.lineTo(radiusC * Math.cos(angle0), radiusC * Math.sin(angle0));
+      }
+
+      context.closePath();
     }
   };
   /**
    * @private
    * @param {RenderOptions} renderOptions Render options.
    * @param {CanvasRenderingContext2D} context The context.
-   * @param {number} x The origin for the symbol (x).
-   * @param {number} y The origin for the symbol (y).
    */
 
 
-  RegularShape.prototype.drawHitDetectionCanvas_ = function (renderOptions, context, x, y) {
-    // move to (x, y)
-    context.translate(x, y);
-    context.beginPath();
-    var points = this.points_;
-
-    if (points === Infinity) {
-      context.arc(renderOptions.size / 2, renderOptions.size / 2, this.radius_, 0, 2 * Math.PI, true);
-    } else {
-      var radius2 = this.radius2_ !== undefined ? this.radius2_ : this.radius_;
-
-      if (radius2 !== this.radius_) {
-        points = 2 * points;
-      }
-
-      var i = void 0,
-          radiusC = void 0,
-          angle0 = void 0;
-
-      for (i = 0; i <= points; i++) {
-        angle0 = i * 2 * Math.PI / points - Math.PI / 2 + this.angle_;
-        radiusC = i % 2 === 0 ? this.radius_ : radius2;
-        context.lineTo(renderOptions.size / 2 + radiusC * Math.cos(angle0), renderOptions.size / 2 + radiusC * Math.sin(angle0));
-      }
-    }
-
+  RegularShape.prototype.drawHitDetectionCanvas_ = function (renderOptions, context) {
+    // set origin to canvas center
+    context.translate(renderOptions.size / 2, renderOptions.size / 2);
+    this.createPath_(context);
     context.fillStyle = _canvas.defaultFillStyle;
     context.fill();
 
@@ -31680,10 +32370,10 @@ function (_super) {
         context.lineDashOffset = renderOptions.lineDashOffset;
       }
 
+      context.lineJoin = renderOptions.lineJoin;
+      context.miterLimit = renderOptions.miterLimit;
       context.stroke();
     }
-
-    context.closePath();
   };
 
   return RegularShape;
@@ -31720,6 +32410,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -31754,7 +32445,7 @@ var CircleStyle =
 function (_super) {
   __extends(CircleStyle, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -31841,7 +32532,7 @@ var Fill =
 /** @class */
 function () {
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
   function Fill(opt_options) {
     var options = opt_options || {};
@@ -31931,7 +32622,7 @@ var Stroke =
 /** @class */
 function () {
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
   function Stroke(opt_options) {
     var options = opt_options || {};
@@ -32324,7 +33015,7 @@ var Style =
 /** @class */
 function () {
   /**
-   * @param {Options=} opt_options Style options.
+   * @param {Options} [opt_options] Style options.
    */
   function Style(opt_options) {
     var options = opt_options || {};
@@ -32402,6 +33093,7 @@ function () {
       geometry: geometry,
       fill: this.getFill() ? this.getFill().clone() : undefined,
       image: this.getImage() ? this.getImage().clone() : undefined,
+      renderer: this.getRenderer(),
       stroke: this.getStroke() ? this.getStroke().clone() : undefined,
       text: this.getText() ? this.getText().clone() : undefined,
       zIndex: this.getZIndex()
@@ -32762,6 +33454,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -32777,6 +33470,7 @@ var __extends = void 0 && (void 0).__extends || function () {
 
 
 /**
+ * @template {import("../source/Vector.js").default|import("../source/VectorTile.js").default} VectorSourceType
  * @typedef {Object} Options
  * @property {string} [className='ol-layer'] A CSS class name to set to the layer element.
  * @property {number} [opacity=1] Opacity (0, 1).
@@ -32801,11 +33495,11 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @property {number} [renderBuffer=100] The buffer in pixels around the viewport extent used by the
  * renderer when getting features from the vector source for the rendering or hit-detection.
  * Recommended value: the size of the largest symbol, line width or label.
- * @property {import("../source/Vector.js").default} [source] Source.
+ * @property {VectorSourceType} [source] Source.
  * @property {import("../PluggableMap.js").default} [map] Sets the layer as overlay on a map. The map will not manage
  * this layer in its layers collection, and the layer will be rendered on top. This is useful for
  * temporary layers. The standard way to add a layer to a map and have it managed by the map is to
- * use {@link module:ol/Map#addLayer}.
+ * use {@link import("../PluggableMap.js").default#addLayer map.addLayer()}.
  * @property {boolean} [declutter=false] Declutter images and text. Decluttering is applied to all
  * image and text styles of all Vector and VectorTile layers that have set this to `true`. The priority
  * is defined by the z-index of the layer, the `zIndex` of the style and the render order of features.
@@ -32820,6 +33514,7 @@ var __extends = void 0 && (void 0).__extends || function () {
  * batches will be recreated when no animation is active.
  * @property {boolean} [updateWhileInteracting=false] When set to `true`, feature batches will
  * be recreated during interactions. See also `updateWhileAnimating`.
+ * @property {Object<string, *>} [properties] Arbitrary observable properties. Can be accessed with `#get()` and `#set()`.
  */
 
 /**
@@ -32846,7 +33541,7 @@ var BaseVectorLayer =
 function (_super) {
   __extends(BaseVectorLayer, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options<VectorSourceType>} [opt_options] Options.
    */
 
 
@@ -33020,7 +33715,7 @@ function (_super) {
    * so only features that have their own styles will be rendered in the layer. Call
    * `setStyle()` without arguments to reset to the default style. See
    * {@link module:ol/style} for information on the default style.
-   * @param {(import("../style/Style.js").StyleLike|null)=} opt_style Layer style.
+   * @param {import("../style/Style.js").StyleLike|null} [opt_style] Layer style.
    * @api
    */
 
@@ -33219,14 +33914,14 @@ function () {
   VectorContext.prototype.setFillStrokeStyle = function (fillStyle, strokeStyle) {};
   /**
    * @param {import("../style/Image.js").default} imageStyle Image style.
-   * @param {import("../render/canvas.js").DeclutterImageWithText=} opt_declutterImageWithText Shared data for combined decluttering with a text style.
+   * @param {import("../render/canvas.js").DeclutterImageWithText} [opt_declutterImageWithText] Shared data for combined decluttering with a text style.
    */
 
 
   VectorContext.prototype.setImageStyle = function (imageStyle, opt_declutterImageWithText) {};
   /**
    * @param {import("../style/Text.js").default} textStyle Text style.
-   * @param {import("../render/canvas.js").DeclutterImageWithText=} opt_declutterImageWithText Shared data for combined decluttering with an image style.
+   * @param {import("../render/canvas.js").DeclutterImageWithText} [opt_declutterImageWithText] Shared data for combined decluttering with an image style.
    */
 
 
@@ -33279,6 +33974,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -33828,6 +34524,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -34013,7 +34710,7 @@ function (_super) {
   };
   /**
    * @param {import("../../style/Image.js").default} imageStyle Image style.
-   * @param {Object=} opt_sharedData Shared data.
+   * @param {Object} [opt_sharedData] Shared data.
    */
 
 
@@ -34056,6 +34753,8 @@ var _Builder = _interopRequireDefault(require("./Builder.js"));
 
 var _Instruction = _interopRequireWildcard(require("./Instruction.js"));
 
+var _canvas = require("../canvas.js");
+
 function _getRequireWildcardCache(nodeInterop) { if (typeof WeakMap !== "function") return null; var cacheBabelInterop = new WeakMap(); var cacheNodeInterop = new WeakMap(); return (_getRequireWildcardCache = function (nodeInterop) { return nodeInterop ? cacheNodeInterop : cacheBabelInterop; })(nodeInterop); }
 
 function _interopRequireWildcard(obj, nodeInterop) { if (!nodeInterop && obj && obj.__esModule) { return obj; } if (obj === null || typeof obj !== "object" && typeof obj !== "function") { return { default: obj }; } var cache = _getRequireWildcardCache(nodeInterop); if (cache && cache.has(obj)) { return cache.get(obj); } var newObj = {}; var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor; for (var key in obj) { if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) { var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null; if (desc && (desc.get || desc.set)) { Object.defineProperty(newObj, key, desc); } else { newObj[key] = obj[key]; } } } newObj.default = obj; if (cache) { cache.set(obj, newObj); } return newObj; }
@@ -34076,6 +34775,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -34140,7 +34840,7 @@ function (_super) {
 
     this.updateStrokeStyle(state, this.applyStroke);
     this.beginGeometry(lineStringGeometry, feature);
-    this.hitDetectionInstructions.push([_Instruction.default.SET_STROKE_STYLE, state.strokeStyle, state.lineWidth, state.lineCap, state.lineJoin, state.miterLimit, state.lineDash, state.lineDashOffset], _Instruction.beginPathInstruction);
+    this.hitDetectionInstructions.push([_Instruction.default.SET_STROKE_STYLE, state.strokeStyle, state.lineWidth, state.lineCap, state.lineJoin, state.miterLimit, _canvas.defaultLineDash, _canvas.defaultLineDashOffset], _Instruction.beginPathInstruction);
     var flatCoordinates = lineStringGeometry.getFlatCoordinates();
     var stride = lineStringGeometry.getStride();
     this.drawFlatCoordinates_(flatCoordinates, 0, flatCoordinates.length, stride);
@@ -34218,7 +34918,7 @@ function (_super) {
 
 var _default = CanvasLineStringBuilder;
 exports.default = _default;
-},{"./Builder.js":"node_modules/ol/render/canvas/Builder.js","./Instruction.js":"node_modules/ol/render/canvas/Instruction.js"}],"node_modules/ol/render/canvas/PolygonBuilder.js":[function(require,module,exports) {
+},{"./Builder.js":"node_modules/ol/render/canvas/Builder.js","./Instruction.js":"node_modules/ol/render/canvas/Instruction.js","../canvas.js":"node_modules/ol/render/canvas.js"}],"node_modules/ol/render/canvas/PolygonBuilder.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -34254,6 +34954,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -34627,6 +35328,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -34933,6 +35635,19 @@ function (_super) {
         return;
       }
 
+      if (geometryWidths && (end - begin) / 2 !== flatCoordinates.length / stride) {
+        var beg_1 = begin / 2;
+        geometryWidths = geometryWidths.filter(function (w, i) {
+          var keep = coordinates[(beg_1 + i) * 2] === flatCoordinates[i * stride] && coordinates[(beg_1 + i) * 2 + 1] === flatCoordinates[i * stride + 1];
+
+          if (!keep) {
+            --beg_1;
+          }
+
+          return keep;
+        });
+      }
+
       this.saveTextStates_();
 
       if (textState.backgroundFill || textState.backgroundStroke) {
@@ -35054,7 +35769,7 @@ function (_super) {
   };
   /**
    * @param {import("../../style/Text.js").default} textStyle Text style.
-   * @param {Object=} opt_sharedData Shared data.
+   * @param {Object} [opt_sharedData] Shared data.
    */
 
 
@@ -35310,6 +36025,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -35551,8 +36267,6 @@ var _extent = require("../../extent.js");
 
 var _dom = require("../../dom.js");
 
-var _canvas = require("../../render/canvas.js");
-
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
 var __extends = void 0 && (void 0).__extends || function () {
@@ -35569,6 +36283,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -35586,6 +36301,7 @@ var __extends = void 0 && (void 0).__extends || function () {
 /**
  * @abstract
  * @template {import("../../layer/Layer.js").default} LayerType
+ * @extends {LayerRenderer<LayerType>}
  */
 var CanvasLayerRenderer =
 /** @class */
@@ -35696,37 +36412,6 @@ function (_super) {
       this.container = container;
       this.context = context;
     }
-  };
-  /**
-   * @param {CanvasRenderingContext2D} context Context.
-   * @param {import("../../PluggableMap.js").FrameState} frameState Frame state.
-   * @param {import("../../extent.js").Extent} extent Clip extent.
-   * @protected
-   */
-
-
-  CanvasLayerRenderer.prototype.clip = function (context, frameState, extent) {
-    var pixelRatio = frameState.pixelRatio;
-    var halfWidth = frameState.size[0] * pixelRatio / 2;
-    var halfHeight = frameState.size[1] * pixelRatio / 2;
-    var rotation = frameState.viewState.rotation;
-    var topLeft = (0, _extent.getTopLeft)(extent);
-    var topRight = (0, _extent.getTopRight)(extent);
-    var bottomRight = (0, _extent.getBottomRight)(extent);
-    var bottomLeft = (0, _extent.getBottomLeft)(extent);
-    (0, _transform.apply)(frameState.coordinateToPixelTransform, topLeft);
-    (0, _transform.apply)(frameState.coordinateToPixelTransform, topRight);
-    (0, _transform.apply)(frameState.coordinateToPixelTransform, bottomRight);
-    (0, _transform.apply)(frameState.coordinateToPixelTransform, bottomLeft);
-    context.save();
-    (0, _canvas.rotateAtOffset)(context, -rotation, halfWidth, halfHeight);
-    context.beginPath();
-    context.moveTo(topLeft[0] * pixelRatio, topLeft[1] * pixelRatio);
-    context.lineTo(topRight[0] * pixelRatio, topRight[1] * pixelRatio);
-    context.lineTo(bottomRight[0] * pixelRatio, bottomRight[1] * pixelRatio);
-    context.lineTo(bottomLeft[0] * pixelRatio, bottomLeft[1] * pixelRatio);
-    context.clip();
-    (0, _canvas.rotateAtOffset)(context, rotation, halfWidth, halfHeight);
   };
   /**
    * @param {CanvasRenderingContext2D} context Context.
@@ -35875,7 +36560,7 @@ function (_super) {
 
 var _default = CanvasLayerRenderer;
 exports.default = _default;
-},{"../Layer.js":"node_modules/ol/renderer/Layer.js","../../render/Event.js":"node_modules/ol/render/Event.js","../../render/EventType.js":"node_modules/ol/render/EventType.js","../../transform.js":"node_modules/ol/transform.js","../../extent.js":"node_modules/ol/extent.js","../../dom.js":"node_modules/ol/dom.js","../../render/canvas.js":"node_modules/ol/render/canvas.js"}],"node_modules/ol/render/canvas/BuilderType.js":[function(require,module,exports) {
+},{"../Layer.js":"node_modules/ol/renderer/Layer.js","../../render/Event.js":"node_modules/ol/render/Event.js","../../render/EventType.js":"node_modules/ol/render/EventType.js","../../transform.js":"node_modules/ol/transform.js","../../extent.js":"node_modules/ol/extent.js","../../dom.js":"node_modules/ol/dom.js"}],"node_modules/ol/render/canvas/BuilderType.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -36085,24 +36770,24 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 /**
  * @typedef {Object} BBox
- * @property {number} minX
- * @property {number} minY
- * @property {number} maxX
- * @property {number} maxY
- * @property {*} value
+ * @property {number} minX Minimal x.
+ * @property {number} minY Minimal y.
+ * @property {number} maxX Maximal x.
+ * @property {number} maxY Maximal y
+ * @property {*} value Value.
  */
 
 /**
  * @typedef {Object} ImageOrLabelDimensions
- * @property {number} drawImageX
- * @property {number} drawImageY
- * @property {number} drawImageW
- * @property {number} drawImageH
- * @property {number} originX
- * @property {number} originY
- * @property {Array<number>} scale
- * @property {BBox} declutterBox
- * @property {import("../../transform.js").Transform} canvasTransform
+ * @property {number} drawImageX DrawImageX.
+ * @property {number} drawImageY DrawImageY.
+ * @property {number} drawImageW DrawImageW.
+ * @property {number} drawImageH DrawImageH.
+ * @property {number} originX OriginX.
+ * @property {number} originY OriginY.
+ * @property {Array<number>} scale Scale.
+ * @property {BBox} declutterBox DeclutterBox.
+ * @property {import("../../transform.js").Transform} canvasTransform CanvasTransform.
  */
 
 /**
@@ -36166,9 +36851,8 @@ function () {
    * @param {number} pixelRatio Pixel ratio.
    * @param {boolean} overlaps The replay can have overlapping geometries.
    * @param {import("../canvas.js").SerializableInstructions} instructions The serializable instructions
-   * @param {import("../../size.js").Size} renderBuffer Render buffer (width/height) in pixels.
    */
-  function Executor(resolution, pixelRatio, overlaps, instructions, renderBuffer) {
+  function Executor(resolution, pixelRatio, overlaps, instructions) {
     /**
      * @protected
      * @type {boolean}
@@ -36211,12 +36895,6 @@ function () {
      */
 
     this.coordinateCache_ = {};
-    /**
-     * @private
-     * @type {import("../../size.js").Size}
-     */
-
-    this.renderBuffer_ = renderBuffer;
     /**
      * @private
      * @type {!import("../../transform.js").Transform}
@@ -36594,10 +37272,10 @@ function () {
    * @param {import("../../transform.js").Transform} transform Transform.
    * @param {Array<*>} instructions Instructions array.
    * @param {boolean} snapToPixel Snap point symbols and text to integer pixels.
-   * @param {FeatureCallback<T>=} opt_featureCallback Feature callback.
-   * @param {import("../../extent.js").Extent=} opt_hitExtent Only check
+   * @param {FeatureCallback<T>} [opt_featureCallback] Feature callback.
+   * @param {import("../../extent.js").Extent} [opt_hitExtent] Only check
    *     features that intersect this extent.
-   * @param {import("rbush").default=} opt_declutterTree Declutter tree.
+   * @param {import("rbush").default} [opt_declutterTree] Declutter tree.
    * @return {T|undefined} Callback result.
    * @template T
    */
@@ -36882,15 +37560,17 @@ function () {
             var imageDeclutterBox = void 0;
 
             if (opt_declutterTree && declutterImageWithText) {
-              if (!declutterImageWithText[d]) {
+              var index = dd - d;
+
+              if (!declutterImageWithText[index]) {
                 // We now have the image for an image+text combination.
-                declutterImageWithText[d] = args; // Don't render anything for now, wait for the text.
+                declutterImageWithText[index] = args; // Don't render anything for now, wait for the text.
 
                 continue;
               }
 
-              imageArgs = declutterImageWithText[d];
-              delete declutterImageWithText[d];
+              imageArgs = declutterImageWithText[index];
+              delete declutterImageWithText[index];
               imageDeclutterBox = getDeclutterBox(imageArgs);
 
               if (opt_declutterTree.collides(imageDeclutterBox)) {
@@ -37176,7 +37856,7 @@ function () {
    * @param {import("../../transform.js").Transform} transform Transform.
    * @param {number} viewRotation View rotation.
    * @param {boolean} snapToPixel Snap point symbols and text to integer pixels.
-   * @param {import("rbush").default=} opt_declutterTree Declutter tree.
+   * @param {import("rbush").default} [opt_declutterTree] Declutter tree.
    */
 
 
@@ -37188,8 +37868,8 @@ function () {
    * @param {CanvasRenderingContext2D} context Context.
    * @param {import("../../transform.js").Transform} transform Transform.
    * @param {number} viewRotation View rotation.
-   * @param {FeatureCallback<T>=} opt_featureCallback Feature callback.
-   * @param {import("../../extent.js").Extent=} opt_hitExtent Only check
+   * @param {FeatureCallback<T>} [opt_featureCallback] Feature callback.
+   * @param {import("../../extent.js").Extent} [opt_hitExtent] Only check
    *     features that intersect this extent.
    * @return {T|undefined} Callback result.
    * @template T
@@ -37248,15 +37928,15 @@ var ExecutorGroup =
 function () {
   /**
    * @param {import("../../extent.js").Extent} maxExtent Max extent for clipping. When a
-   * `maxExtent` was set on the Buillder for this executor group, the same `maxExtent`
-   * should be set here, unless the target context does not exceet that extent (which
+   * `maxExtent` was set on the Builder for this executor group, the same `maxExtent`
+   * should be set here, unless the target context does not exceed that extent (which
    * can be the case when rendering to tiles).
    * @param {number} resolution Resolution.
    * @param {number} pixelRatio Pixel ratio.
    * @param {boolean} overlaps The executor group can have overlapping geometries.
    * @param {!Object<string, !Object<import("./BuilderType.js").default, import("../canvas.js").SerializableInstructions>>} allInstructions
    * The serializable instructions.
-   * @param {number=} opt_renderBuffer Optional rendering buffer.
+   * @param {number} [opt_renderBuffer] Optional rendering buffer.
    */
   function ExecutorGroup(maxExtent, resolution, pixelRatio, overlaps, allInstructions, opt_renderBuffer) {
     /**
@@ -37340,11 +38020,10 @@ function () {
       }
 
       var instructionByZindex = allInstructions[zIndex];
-      var renderBuffer = [this.renderBuffer_ || 0, this.renderBuffer_ || 0];
 
       for (var builderType in instructionByZindex) {
         var instructions = instructionByZindex[builderType];
-        executors[builderType] = new _Executor.default(this.resolution_, this.pixelRatio_, this.overlaps_, instructions, renderBuffer);
+        executors[builderType] = new _Executor.default(this.resolution_, this.pixelRatio_, this.overlaps_, instructions);
       }
     }
   };
@@ -37503,9 +38182,9 @@ function () {
    * @param {import("../../transform.js").Transform} transform Transform.
    * @param {number} viewRotation View rotation.
    * @param {boolean} snapToPixel Snap point symbols and test to integer pixel.
-   * @param {Array<import("./BuilderType.js").default>=} opt_builderTypes Ordered replay types to replay.
+   * @param {Array<import("./BuilderType.js").default>} [opt_builderTypes] Ordered replay types to replay.
    *     Default is {@link module:ol/render/replay~ORDER}
-   * @param {import("rbush").default=} opt_declutterTree Declutter tree.
+   * @param {import("rbush").default} [opt_declutterTree] Declutter tree.
    */
 
 
@@ -37562,7 +38241,7 @@ var circlePixelIndexArrayCache = {};
  * ordered by how close they are to the center.
  * A cache is used to increase performance.
  * @param {number} radius Radius.
- * @returns {Array<number>} An array with indexes within a circle.
+ * @return {Array<number>} An array with indexes within a circle.
  */
 
 function getPixelIndexArray(radius) {
@@ -37667,6 +38346,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -37679,11 +38359,11 @@ var __extends = void 0 && (void 0).__extends || function () {
 
 /**
  * @classdesc
- * A concrete subclass of {@link module:ol/render/VectorContext} that implements
+ * A concrete subclass of {@link module:ol/render/VectorContext VectorContext} that implements
  * direct rendering of features and geometries to an HTML5 Canvas context.
  * Instances of this class are created internally by the library and
  * provided to application code as vectorContext member of the
- * {@link module:ol/render/Event~RenderEvent} object associated with postcompose, precompose and
+ * {@link module:ol/render/Event~RenderEvent RenderEvent} object associated with postcompose, precompose and
  * render events emitted by layers and maps.
  */
 var CanvasImmediateRenderer =
@@ -37696,8 +38376,8 @@ function (_super) {
    * @param {import("../../extent.js").Extent} extent Extent.
    * @param {import("../../transform.js").Transform} transform Transform.
    * @param {number} viewRotation View rotation.
-   * @param {number=} opt_squaredTolerance Optional squared tolerance for simplification.
-   * @param {import("../../proj.js").TransformFunction=} opt_userTransform Transform from user to view projection.
+   * @param {number} [opt_squaredTolerance] Optional squared tolerance for simplification.
+   * @param {import("../../proj.js").TransformFunction} [opt_userTransform] Transform from user to view projection.
    */
 
 
@@ -37924,7 +38604,7 @@ function (_super) {
       return;
     }
 
-    var pixelCoordinates = (0, _transform2.transform2D)(flatCoordinates, offset, end, 2, this.transform_, this.pixelCoordinates_);
+    var pixelCoordinates = (0, _transform2.transform2D)(flatCoordinates, offset, end, stride, this.transform_, this.pixelCoordinates_);
     var context = this.context_;
     var localTransform = this.tmpLocalTransform_;
     var alpha = context.globalAlpha;
@@ -38138,7 +38818,7 @@ function (_super) {
   };
   /**
    * Render a geometry into the canvas.  Call
-   * {@link module:ol/render/canvas/Immediate#setStyle} first to set the rendering style.
+   * {@link module:ol/render/canvas/Immediate~CanvasImmediateRenderer#setStyle renderer.setStyle()} first to set the rendering style.
    *
    * @param {import("../../geom/Geometry.js").default|import("../Feature.js").default} geometry The geometry to render.
    * @api
@@ -38204,7 +38884,7 @@ function (_super) {
    * Render a feature into the canvas.  Note that any `zIndex` on the provided
    * style will be ignored - features are rendered immediately in the order that
    * this method is called.  If you need `zIndex` support, you should be using an
-   * {@link module:ol/layer/Vector~VectorLayer} instead.
+   * {@link module:ol/layer/Vector~VectorLayer VectorLayer} instead.
    *
    * @param {import("../../Feature.js").default} feature Feature.
    * @param {import("../../style/Style.js").default} style Style.
@@ -38617,6 +39297,8 @@ function (_super) {
 
 
   CanvasImmediateRenderer.prototype.setFillStrokeStyle = function (fillStyle, strokeStyle) {
+    var _this = this;
+
     if (!fillStyle) {
       this.fillState_ = null;
     } else {
@@ -38636,12 +39318,15 @@ function (_super) {
       var strokeStyleLineJoin = strokeStyle.getLineJoin();
       var strokeStyleWidth = strokeStyle.getWidth();
       var strokeStyleMiterLimit = strokeStyle.getMiterLimit();
+      var lineDash = strokeStyleLineDash ? strokeStyleLineDash : _canvas.defaultLineDash;
       this.strokeState_ = {
         lineCap: strokeStyleLineCap !== undefined ? strokeStyleLineCap : _canvas.defaultLineCap,
-        lineDash: strokeStyleLineDash ? strokeStyleLineDash : _canvas.defaultLineDash,
-        lineDashOffset: strokeStyleLineDashOffset ? strokeStyleLineDashOffset : _canvas.defaultLineDashOffset,
+        lineDash: this.pixelRatio_ === 1 ? lineDash : lineDash.map(function (n) {
+          return n * _this.pixelRatio_;
+        }),
+        lineDashOffset: (strokeStyleLineDashOffset ? strokeStyleLineDashOffset : _canvas.defaultLineDashOffset) * this.pixelRatio_,
         lineJoin: strokeStyleLineJoin !== undefined ? strokeStyleLineJoin : _canvas.defaultLineJoin,
-        lineWidth: this.pixelRatio_ * (strokeStyleWidth !== undefined ? strokeStyleWidth : _canvas.defaultLineWidth),
+        lineWidth: (strokeStyleWidth !== undefined ? strokeStyleWidth : _canvas.defaultLineWidth) * this.pixelRatio_,
         miterLimit: strokeStyleMiterLimit !== undefined ? strokeStyleMiterLimit : _canvas.defaultMiterLimit,
         strokeStyle: (0, _colorlike.asColorLike)(strokeStyleColor ? strokeStyleColor : _canvas.defaultStrokeStyle)
       };
@@ -38656,32 +39341,26 @@ function (_super) {
 
 
   CanvasImmediateRenderer.prototype.setImageStyle = function (imageStyle) {
-    if (!imageStyle) {
+    var imageSize;
+
+    if (!imageStyle || !(imageSize = imageStyle.getSize())) {
       this.image_ = null;
-    } else {
-      var imageSize = imageStyle.getSize();
-
-      if (!imageSize) {
-        this.image_ = null;
-      } else {
-        var imageAnchor = imageStyle.getAnchor(); // FIXME pixel ratio
-
-        var imageImage = imageStyle.getImage(1);
-        var imageOrigin = imageStyle.getOrigin();
-        var imageScale = imageStyle.getScaleArray();
-        this.imageAnchorX_ = imageAnchor[0];
-        this.imageAnchorY_ = imageAnchor[1];
-        this.imageHeight_ = imageSize[1];
-        this.image_ = imageImage;
-        this.imageOpacity_ = imageStyle.getOpacity();
-        this.imageOriginX_ = imageOrigin[0];
-        this.imageOriginY_ = imageOrigin[1];
-        this.imageRotateWithView_ = imageStyle.getRotateWithView();
-        this.imageRotation_ = imageStyle.getRotation();
-        this.imageScale_ = [this.pixelRatio_ * imageScale[0], this.pixelRatio_ * imageScale[1]];
-        this.imageWidth_ = imageSize[0];
-      }
+      return;
     }
+
+    var imageAnchor = imageStyle.getAnchor();
+    var imageOrigin = imageStyle.getOrigin();
+    this.image_ = imageStyle.getImage(this.pixelRatio_);
+    this.imageAnchorX_ = imageAnchor[0] * this.pixelRatio_;
+    this.imageAnchorY_ = imageAnchor[1] * this.pixelRatio_;
+    this.imageHeight_ = imageSize[1] * this.pixelRatio_;
+    this.imageOpacity_ = imageStyle.getOpacity();
+    this.imageOriginX_ = imageOrigin[0];
+    this.imageOriginY_ = imageOrigin[1];
+    this.imageRotateWithView_ = imageStyle.getRotateWithView();
+    this.imageRotation_ = imageStyle.getRotation();
+    this.imageScale_ = imageStyle.getScaleArray();
+    this.imageWidth_ = imageSize[0] * this.pixelRatio_;
   };
   /**
    * Set the text style for subsequent draw operations.  Pass null to
@@ -38859,6 +39538,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -39021,6 +39701,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -39166,6 +39847,7 @@ function (_super) {
 
   ImageWrapper.prototype.setImage = function (image) {
     this.image_ = image;
+    this.resolution = (0, _extent.getHeight)(this.extent) / this.image_.height;
   };
   /**
    * Discards event handlers which listen for load completion or errors.
@@ -39272,6 +39954,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -39534,7 +40217,7 @@ function (_super) {
 
     if (ctx.globalCompositeOperation === 'multiply' || this.isTainted_()) {
       ctx.fillStyle = (0, _color.asString)(this.color_);
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, canvas.width / pixelRatio, canvas.height / pixelRatio);
       ctx.globalCompositeOperation = 'destination-in';
       ctx.drawImage(this.image_, 0, 0);
     } else {
@@ -39638,6 +40321,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -39697,7 +40381,7 @@ var Icon =
 function (_super) {
   __extends(Icon, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -39916,6 +40600,9 @@ function (_super) {
       }
     }
 
+    var displacement = this.getDisplacement();
+    anchor[0] -= displacement[0];
+    anchor[1] += displacement[1];
     this.normalizedAnchor_ = anchor;
     return this.normalizedAnchor_;
   };
@@ -39956,7 +40643,7 @@ function (_super) {
   /**
    * Get the pixel ratio.
    * @param {number} pixelRatio Pixel ratio.
-   * @return {number} The pixel ration of the image.
+   * @return {number} The pixel ratio of the image.
    * @api
    */
 
@@ -39971,14 +40658,6 @@ function (_super) {
 
   Icon.prototype.getImageSize = function () {
     return this.iconImage_.getSize();
-  };
-  /**
-   * @return {import("../size.js").Size} Size of the hit-detection image.
-   */
-
-
-  Icon.prototype.getHitDetectionImageSize = function () {
-    return this.getImageSize();
   };
   /**
    * @return {import("../ImageState.js").default} Image state.
@@ -40009,7 +40688,6 @@ function (_super) {
     }
 
     var offset = this.offset_;
-    var displacement = this.getDisplacement();
 
     if (this.offsetOrigin_ != _IconOrigin.default.TOP_LEFT) {
       var size = this.getSize();
@@ -40030,8 +40708,6 @@ function (_super) {
       }
     }
 
-    offset[0] += displacement[0];
-    offset[1] += displacement[1];
     this.origin_ = offset;
     return this.origin_;
   };
@@ -40156,7 +40832,7 @@ var Text =
 /** @class */
 function () {
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
   function Text(opt_options) {
     var options = opt_options || {};
@@ -40761,6 +41437,7 @@ Object.defineProperty(exports, "__esModule", {
 });
 exports.createHitDetectionImageData = createHitDetectionImageData;
 exports.hitDetect = hitDetect;
+exports.HIT_DETECT_RESOLUTION = void 0;
 
 var _Immediate = _interopRequireDefault(require("./Immediate.js"));
 
@@ -40769,6 +41446,8 @@ var _GeometryType = _interopRequireDefault(require("../../geom/GeometryType.js")
 var _IconAnchorUnits = _interopRequireDefault(require("../../style/IconAnchorUnits.js"));
 
 var _style = require("../../style.js");
+
+var _math = require("../../math.js");
 
 var _dom = require("../../dom.js");
 
@@ -40781,7 +41460,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 /**
  * @module ol/render/canvas/hitdetect
  */
-
+var HIT_DETECT_RESOLUTION = 0.5;
 /**
  * @param {import("../../size.js").Size} size Canvas size in css pixels.
  * @param {Array<import("../../transform.js").Transform>} transforms Transforms
@@ -40796,13 +41475,16 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * @param {number} rotation Rotation.
  * @return {ImageData} Hit detection image data.
  */
+
+exports.HIT_DETECT_RESOLUTION = HIT_DETECT_RESOLUTION;
+
 function createHitDetectionImageData(size, transforms, features, styleFunction, extent, resolution, rotation) {
-  var width = size[0] / 2;
-  var height = size[1] / 2;
+  var width = size[0] * HIT_DETECT_RESOLUTION;
+  var height = size[1] * HIT_DETECT_RESOLUTION;
   var context = (0, _dom.createCanvasContext2D)(width, height);
   context.imageSmoothingEnabled = false;
   var canvas = context.canvas;
-  var renderer = new _Immediate.default(context, 0.5, extent, null, rotation);
+  var renderer = new _Immediate.default(context, HIT_DETECT_RESOLUTION, extent, null, rotation);
   var featureCount = features.length; // Stretch hit detection index to use the whole available color range
 
   var indexFactor = Math.floor((256 * 256 * 256 - 1) / featureCount);
@@ -40831,6 +41513,12 @@ function createHitDetectionImageData(size, transforms, features, styleFunction, 
 
     for (var j = 0, jj = styles.length; j < jj; ++j) {
       var originalStyle = styles[j];
+      var geometry = originalStyle.getGeometryFunction()(feature);
+
+      if (!geometry || !(0, _extent.intersects)(extent, geometry.getExtent())) {
+        continue;
+      }
+
       var style = originalStyle.clone();
       var fill = style.getFill();
 
@@ -40842,31 +41530,25 @@ function createHitDetectionImageData(size, transforms, features, styleFunction, 
 
       if (stroke) {
         stroke.setColor(color);
+        stroke.setLineDash(null);
       }
 
       style.setText(undefined);
       var image = originalStyle.getImage();
 
-      if (image) {
+      if (image && image.getOpacity() !== 0) {
         var imgSize = image.getImageSize();
 
         if (!imgSize) {
           continue;
         }
 
-        var canvas_1 = document.createElement('canvas');
-        canvas_1.width = imgSize[0];
-        canvas_1.height = imgSize[1];
-        var imgContext = canvas_1.getContext('2d', {
+        var imgContext = (0, _dom.createCanvasContext2D)(imgSize[0], imgSize[1], undefined, {
           alpha: false
         });
-        imgContext.fillStyle = color;
         var img = imgContext.canvas;
+        imgContext.fillStyle = color;
         imgContext.fillRect(0, 0, img.width, img.height);
-        var width_1 = imgSize ? imgSize[0] : img.width;
-        var height_1 = imgSize ? imgSize[1] : img.height;
-        var iconContext = (0, _dom.createCanvasContext2D)(width_1, height_1);
-        iconContext.drawImage(img, 0, 0);
         style.setImage(new _style.Icon({
           img: img,
           imgSize: imgSize,
@@ -40874,15 +41556,15 @@ function createHitDetectionImageData(size, transforms, features, styleFunction, 
           anchorXUnits: _IconAnchorUnits.default.PIXELS,
           anchorYUnits: _IconAnchorUnits.default.PIXELS,
           offset: image.getOrigin(),
+          opacity: 1,
           size: image.getSize(),
-          opacity: image.getOpacity(),
           scale: image.getScale(),
           rotation: image.getRotation(),
           rotateWithView: image.getRotateWithView()
         }));
       }
 
-      var zIndex = Number(style.getZIndex());
+      var zIndex = style.getZIndex() || 0;
       var byGeometryType = featuresByZIndex[zIndex];
 
       if (!byGeometryType) {
@@ -40894,11 +41576,7 @@ function createHitDetectionImageData(size, transforms, features, styleFunction, 
         byGeometryType[_GeometryType.default.POINT] = [];
       }
 
-      var geometry = style.getGeometryFunction()(feature);
-
-      if (geometry && (0, _extent.intersects)(extent, geometry.getExtent())) {
-        byGeometryType[geometry.getType().replace('Multi', '')].push(geometry, style);
-      }
+      byGeometryType[geometry.getType().replace('Multi', '')].push(geometry, style);
     }
   }
 
@@ -40938,7 +41616,12 @@ function hitDetect(pixel, features, imageData) {
   var resultFeatures = [];
 
   if (imageData) {
-    var index = (Math.round(pixel[0] / 2) + Math.round(pixel[1] / 2) * imageData.width) * 4;
+    var x = Math.floor(Math.round(pixel[0]) * HIT_DETECT_RESOLUTION);
+    var y = Math.floor(Math.round(pixel[1]) * HIT_DETECT_RESOLUTION); // The pixel coordinate is clamped down to the hit-detect canvas' size to account
+    // for browsers returning coordinates slightly larger than the actual canvas size
+    // due to a non-integer pixel ratio.
+
+    var index = ((0, _math.clamp)(x, 0, imageData.width - 1) + (0, _math.clamp)(y, 0, imageData.height - 1) * imageData.width) * 4;
     var r = imageData.data[index];
     var g = imageData.data[index + 1];
     var b = imageData.data[index + 2];
@@ -40952,7 +41635,7 @@ function hitDetect(pixel, features, imageData) {
 
   return resultFeatures;
 }
-},{"./Immediate.js":"node_modules/ol/render/canvas/Immediate.js","../../geom/GeometryType.js":"node_modules/ol/geom/GeometryType.js","../../style/IconAnchorUnits.js":"node_modules/ol/style/IconAnchorUnits.js","../../style.js":"node_modules/ol/style.js","../../dom.js":"node_modules/ol/dom.js","../../extent.js":"node_modules/ol/extent.js","../../array.js":"node_modules/ol/array.js"}],"node_modules/ol/renderer/vector.js":[function(require,module,exports) {
+},{"./Immediate.js":"node_modules/ol/render/canvas/Immediate.js","../../geom/GeometryType.js":"node_modules/ol/geom/GeometryType.js","../../style/IconAnchorUnits.js":"node_modules/ol/style/IconAnchorUnits.js","../../style.js":"node_modules/ol/style.js","../../math.js":"node_modules/ol/math.js","../../dom.js":"node_modules/ol/dom.js","../../extent.js":"node_modules/ol/extent.js","../../array.js":"node_modules/ol/array.js"}],"node_modules/ol/renderer/vector.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -41044,7 +41727,7 @@ function getTolerance(resolution, pixelRatio) {
  * @param {import("../geom/Circle.js").default} geometry Geometry.
  * @param {import("../style/Style.js").default} style Style.
  * @param {import("../Feature.js").default} feature Feature.
- * @param {import("../render/canvas/BuilderGroup.js").default=} opt_declutterBuilderGroup Builder for decluttering.
+ * @param {import("../render/canvas/BuilderGroup.js").default} [opt_declutterBuilderGroup] Builder for decluttering.
  */
 
 
@@ -41073,7 +41756,7 @@ function renderCircleGeometry(builderGroup, geometry, style, feature, opt_declut
  * @param {number} squaredTolerance Squared tolerance.
  * @param {function(import("../events/Event.js").default): void} listener Listener function.
  * @param {import("../proj.js").TransformFunction} [opt_transform] Transform from user to view projection.
- * @param {import("../render/canvas/BuilderGroup.js").default=} opt_declutterBuilderGroup Builder for decluttering.
+ * @param {import("../render/canvas/BuilderGroup.js").default} [opt_declutterBuilderGroup] Builder for decluttering.
  * @return {boolean} `true` if style is loading.
  */
 
@@ -41107,7 +41790,7 @@ function renderFeature(replayGroup, feature, style, squaredTolerance, listener, 
  * @param {import("../style/Style.js").default} style Style.
  * @param {number} squaredTolerance Squared tolerance.
  * @param {import("../proj.js").TransformFunction} [opt_transform] Optional transform function.
- * @param {import("../render/canvas/BuilderGroup.js").default=} opt_declutterBuilderGroup Builder for decluttering.
+ * @param {import("../render/canvas/BuilderGroup.js").default} [opt_declutterBuilderGroup] Builder for decluttering.
  */
 
 
@@ -41159,7 +41842,7 @@ function renderGeometry(replayGroup, geometry, style, feature) {
  * @param {import("../geom/GeometryCollection.js").default} geometry Geometry.
  * @param {import("../style/Style.js").default} style Style.
  * @param {import("../Feature.js").default} feature Feature.
- * @param {import("../render/canvas/BuilderGroup.js").default=} opt_declutterBuilderGroup Builder for decluttering.
+ * @param {import("../render/canvas/BuilderGroup.js").default} [opt_declutterBuilderGroup] Builder for decluttering.
  */
 
 
@@ -41177,7 +41860,7 @@ function renderGeometryCollectionGeometry(replayGroup, geometry, style, feature,
  * @param {import("../geom/LineString.js").default|import("../render/Feature.js").default} geometry Geometry.
  * @param {import("../style/Style.js").default} style Style.
  * @param {import("../Feature.js").FeatureLike} feature Feature.
- * @param {import("../render/canvas/BuilderGroup.js").default=} opt_declutterBuilderGroup Builder for decluttering.
+ * @param {import("../render/canvas/BuilderGroup.js").default} [opt_declutterBuilderGroup] Builder for decluttering.
  */
 
 
@@ -41203,7 +41886,7 @@ function renderLineStringGeometry(builderGroup, geometry, style, feature, opt_de
  * @param {import("../geom/MultiLineString.js").default|import("../render/Feature.js").default} geometry Geometry.
  * @param {import("../style/Style.js").default} style Style.
  * @param {import("../Feature.js").FeatureLike} feature Feature.
- * @param {import("../render/canvas/BuilderGroup.js").default=} opt_declutterBuilderGroup Builder for decluttering.
+ * @param {import("../render/canvas/BuilderGroup.js").default} [opt_declutterBuilderGroup] Builder for decluttering.
  */
 
 
@@ -41229,7 +41912,7 @@ function renderMultiLineStringGeometry(builderGroup, geometry, style, feature, o
  * @param {import("../geom/MultiPolygon.js").default} geometry Geometry.
  * @param {import("../style/Style.js").default} style Style.
  * @param {import("../Feature.js").default} feature Feature.
- * @param {import("../render/canvas/BuilderGroup.js").default=} opt_declutterBuilderGroup Builder for decluttering.
+ * @param {import("../render/canvas/BuilderGroup.js").default} [opt_declutterBuilderGroup] Builder for decluttering.
  */
 
 
@@ -41256,7 +41939,7 @@ function renderMultiPolygonGeometry(builderGroup, geometry, style, feature, opt_
  * @param {import("../geom/Point.js").default|import("../render/Feature.js").default} geometry Geometry.
  * @param {import("../style/Style.js").default} style Style.
  * @param {import("../Feature.js").FeatureLike} feature Feature.
- * @param {import("../render/canvas/BuilderGroup.js").default=} opt_declutterBuilderGroup Builder for decluttering.
+ * @param {import("../render/canvas/BuilderGroup.js").default} [opt_declutterBuilderGroup] Builder for decluttering.
  */
 
 
@@ -41293,7 +41976,7 @@ function renderPointGeometry(builderGroup, geometry, style, feature, opt_declutt
  * @param {import("../geom/MultiPoint.js").default|import("../render/Feature.js").default} geometry Geometry.
  * @param {import("../style/Style.js").default} style Style.
  * @param {import("../Feature.js").FeatureLike} feature Feature.
- * @param {import("../render/canvas/BuilderGroup.js").default=} opt_declutterBuilderGroup Builder for decluttering.
+ * @param {import("../render/canvas/BuilderGroup.js").default} [opt_declutterBuilderGroup] Builder for decluttering.
  */
 
 
@@ -41330,7 +42013,7 @@ function renderMultiPointGeometry(builderGroup, geometry, style, feature, opt_de
  * @param {import("../geom/Polygon.js").default|import("../render/Feature.js").default} geometry Geometry.
  * @param {import("../style/Style.js").default} style Style.
  * @param {import("../Feature.js").FeatureLike} feature Feature.
- * @param {import("../render/canvas/BuilderGroup.js").default=} opt_declutterBuilderGroup Builder for decluttering.
+ * @param {import("../render/canvas/BuilderGroup.js").default} [opt_declutterBuilderGroup] Builder for decluttering.
  */
 
 
@@ -41368,13 +42051,15 @@ var _ExecutorGroup = _interopRequireDefault(require("../../render/canvas/Executo
 
 var _ViewHint = _interopRequireDefault(require("../../ViewHint.js"));
 
+var _hitdetect = require("../../render/canvas/hitdetect.js");
+
 var _transform = require("../../transform.js");
 
 var _extent = require("../../extent.js");
 
-var _hitdetect = require("../../render/canvas/hitdetect.js");
-
 var _vector = require("../vector.js");
+
+var _array = require("../../array.js");
 
 var _proj = require("../../proj.js");
 
@@ -41398,6 +42083,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -41473,6 +42159,12 @@ function (_super) {
     _this.renderedExtent_ = (0, _extent.createEmpty)();
     /**
      * @private
+     * @type {import("../../extent.js").Extent}
+     */
+
+    _this.wrappedRenderedExtent_ = (0, _extent.createEmpty)();
+    /**
+     * @private
      * @type {number}
      */
 
@@ -41538,7 +42230,7 @@ function (_super) {
   /**
    * @param {ExecutorGroup} executorGroup Executor group.
    * @param {import("../../PluggableMap.js").FrameState} frameState Frame state.
-   * @param {import("rbush").default=} opt_declutterTree Declutter tree.
+   * @param {import("rbush").default} [opt_declutterTree] Declutter tree.
    */
 
 
@@ -41627,17 +42319,21 @@ function (_super) {
     var projection = viewState.projection; // clipped rendering if layer extent is set
 
     var clipped = false;
+    var render = true;
 
     if (layerState.extent && this.clipping) {
       var layerExtent = (0, _proj.fromUserExtent)(layerState.extent, projection);
-      clipped = !(0, _extent.containsExtent)(layerExtent, frameState.extent) && (0, _extent.intersects)(layerExtent, frameState.extent);
+      render = (0, _extent.intersects)(layerExtent, frameState.extent);
+      clipped = render && !(0, _extent.containsExtent)(layerExtent, frameState.extent);
 
       if (clipped) {
         this.clipUnrotated(context, frameState, layerExtent);
       }
     }
 
-    this.renderWorlds(replayGroup, frameState);
+    if (render) {
+      this.renderWorlds(replayGroup, frameState);
+    }
 
     if (clipped) {
       context.restore();
@@ -41679,12 +42375,12 @@ function (_super) {
         var resolution = this.renderedResolution_;
         var rotation = this.renderedRotation_;
         var projection = this.renderedProjection_;
-        var extent = this.renderedExtent_;
+        var extent = this.wrappedRenderedExtent_;
         var layer = this.getLayer();
         var transforms = [];
-        var width = size[0] / 2;
-        var height = size[1] / 2;
-        transforms.push(this.getRenderTransform(center, resolution, rotation, 0.5, width, height, 0).slice());
+        var width = size[0] * _hitdetect.HIT_DETECT_RESOLUTION;
+        var height = size[1] * _hitdetect.HIT_DETECT_RESOLUTION;
+        transforms.push(this.getRenderTransform(center, resolution, rotation, _hitdetect.HIT_DETECT_RESOLUTION, width, height, 0).slice());
         var source = layer.getSource();
         var projectionExtent = projection.getExtent();
 
@@ -41697,7 +42393,7 @@ function (_super) {
           while (startX < projectionExtent[0]) {
             --world;
             offsetX = worldWidth * world;
-            transforms.push(this.getRenderTransform(center, resolution, rotation, 0.5, width, height, offsetX).slice());
+            transforms.push(this.getRenderTransform(center, resolution, rotation, _hitdetect.HIT_DETECT_RESOLUTION, width, height, offsetX).slice());
             startX += worldWidth;
           }
 
@@ -41707,7 +42403,7 @@ function (_super) {
           while (startX > projectionExtent[2]) {
             ++world;
             offsetX = worldWidth * world;
-            transforms.push(this.getRenderTransform(center, resolution, rotation, 0.5, width, height, offsetX).slice());
+            transforms.push(this.getRenderTransform(center, resolution, rotation, _hitdetect.HIT_DETECT_RESOLUTION, width, height, offsetX).slice());
             startX -= worldWidth;
           }
         }
@@ -41857,6 +42553,7 @@ function (_super) {
 
     var center = viewState.center.slice();
     var extent = (0, _extent.buffer)(frameStateExtent, vectorLayerRenderBuffer * resolution);
+    var renderedExtent = extent.slice();
     var loadExtents = [extent.slice()];
     var projectionExtent = projection.getExtent();
 
@@ -41880,7 +42577,13 @@ function (_super) {
       }
     }
 
-    if (!this.dirty_ && this.renderedResolution_ == resolution && this.renderedRevision_ == vectorLayerRevision && this.renderedRenderOrder_ == vectorLayerRenderOrder && (0, _extent.containsExtent)(this.renderedExtent_, extent)) {
+    if (!this.dirty_ && this.renderedResolution_ == resolution && this.renderedRevision_ == vectorLayerRevision && this.renderedRenderOrder_ == vectorLayerRenderOrder && (0, _extent.containsExtent)(this.wrappedRenderedExtent_, extent)) {
+      if (!(0, _array.equals)(this.renderedExtent_, renderedExtent)) {
+        this.hitDetectionImageData_ = null;
+        this.renderedExtent_ = renderedExtent;
+      }
+
+      this.renderedCenter_ = center;
       this.replayGroupChanged = false;
       return true;
     }
@@ -41954,7 +42657,8 @@ function (_super) {
     this.renderedResolution_ = resolution;
     this.renderedRevision_ = vectorLayerRevision;
     this.renderedRenderOrder_ = vectorLayerRenderOrder;
-    this.renderedExtent_ = extent;
+    this.renderedExtent_ = renderedExtent;
+    this.wrappedRenderedExtent_ = extent;
     this.renderedCenter_ = center;
     this.renderedProjection_ = projection;
     this.replayGroup_ = executorGroup;
@@ -41967,8 +42671,8 @@ function (_super) {
    * @param {number} squaredTolerance Squared render tolerance.
    * @param {import("../../style/Style.js").default|Array<import("../../style/Style.js").default>} styles The style or array of styles.
    * @param {import("../../render/canvas/BuilderGroup.js").default} builderGroup Builder group.
-   * @param {import("../../proj.js").TransformFunction=} opt_transform Transform from user to view projection.
-   * @param {import("../../render/canvas/BuilderGroup.js").default=} opt_declutterBuilderGroup Builder for decluttering.
+   * @param {import("../../proj.js").TransformFunction} [opt_transform] Transform from user to view projection.
+   * @param {import("../../render/canvas/BuilderGroup.js").default} [opt_declutterBuilderGroup] Builder for decluttering.
    * @return {boolean} `true` if an image is loading.
    */
 
@@ -41996,7 +42700,7 @@ function (_super) {
 
 var _default = CanvasVectorLayerRenderer;
 exports.default = _default;
-},{"../../render/canvas/BuilderGroup.js":"node_modules/ol/render/canvas/BuilderGroup.js","./Layer.js":"node_modules/ol/renderer/canvas/Layer.js","../../render/canvas/ExecutorGroup.js":"node_modules/ol/render/canvas/ExecutorGroup.js","../../ViewHint.js":"node_modules/ol/ViewHint.js","../../transform.js":"node_modules/ol/transform.js","../../extent.js":"node_modules/ol/extent.js","../../render/canvas/hitdetect.js":"node_modules/ol/render/canvas/hitdetect.js","../vector.js":"node_modules/ol/renderer/vector.js","../../proj.js":"node_modules/ol/proj.js","../../util.js":"node_modules/ol/util.js","../../coordinate.js":"node_modules/ol/coordinate.js"}],"node_modules/ol/layer/Vector.js":[function(require,module,exports) {
+},{"../../render/canvas/BuilderGroup.js":"node_modules/ol/render/canvas/BuilderGroup.js","./Layer.js":"node_modules/ol/renderer/canvas/Layer.js","../../render/canvas/ExecutorGroup.js":"node_modules/ol/render/canvas/ExecutorGroup.js","../../ViewHint.js":"node_modules/ol/ViewHint.js","../../render/canvas/hitdetect.js":"node_modules/ol/render/canvas/hitdetect.js","../../transform.js":"node_modules/ol/transform.js","../../extent.js":"node_modules/ol/extent.js","../vector.js":"node_modules/ol/renderer/vector.js","../../array.js":"node_modules/ol/array.js","../../proj.js":"node_modules/ol/proj.js","../../util.js":"node_modules/ol/util.js","../../coordinate.js":"node_modules/ol/coordinate.js"}],"node_modules/ol/layer/Vector.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -42024,6 +42728,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -42045,7 +42750,8 @@ var __extends = void 0 && (void 0).__extends || function () {
  * property on the layer object; for example, setting `title: 'My Title'` in the
  * options means that `title` is observable, and has get/set accessors.
  *
- * @extends {BaseVectorLayer<import("../source/Vector.js").default>}
+ * @template {import("../source/Vector.js").default} VectorSourceType
+ * @extends {BaseVectorLayer<VectorSourceType>}
  * @api
  */
 var VectorLayer =
@@ -42053,7 +42759,7 @@ var VectorLayer =
 function (_super) {
   __extends(VectorLayer, _super);
   /**
-   * @param {import("./BaseVector.js").Options=} opt_options Options.
+   * @param {import("./BaseVector.js").Options<VectorSourceType>} [opt_options] Options.
    */
 
 
@@ -42099,11 +42805,11 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 
 /**
  * @typedef {Object} Entry
- * @property {number} minX
- * @property {number} minY
- * @property {number} maxX
- * @property {number} maxY
- * @property {Object} [value]
+ * @property {number} minX MinX.
+ * @property {number} minY MinY.
+ * @property {number} maxX MaxX.
+ * @property {number} maxY MaxY.
+ * @property {Object} [value] Value.
  */
 
 /**
@@ -42117,7 +42823,7 @@ var RBush =
 /** @class */
 function () {
   /**
-   * @param {number=} opt_maxEntries Max entries.
+   * @param {number} [opt_maxEntries] Max entries.
    */
   function RBush(opt_maxEntries) {
     /**
@@ -42305,7 +43011,7 @@ function () {
     this.items_ = {};
   };
   /**
-   * @param {import("../extent.js").Extent=} opt_extent Extent.
+   * @param {import("../extent.js").Extent} [opt_extent] Extent.
    * @return {import("../extent.js").Extent} Extent.
    */
 
@@ -42364,6 +43070,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -42379,8 +43086,8 @@ var __extends = void 0 && (void 0).__extends || function () {
 
 
 /**
- * A function that returns a string or an array of strings representing source
- * attributions.
+ * A function that takes a {@link module:ol/PluggableMap~FrameState} and returns a string or
+ * an array of strings representing source attributions.
  *
  * @typedef {function(import("../PluggableMap.js").FrameState): (string|Array<string>)} Attribution
  */
@@ -42398,11 +43105,11 @@ var __extends = void 0 && (void 0).__extends || function () {
 
 /**
  * @typedef {Object} Options
- * @property {AttributionLike} [attributions]
+ * @property {AttributionLike} [attributions] Attributions.
  * @property {boolean} [attributionsCollapsible=true] Attributions are collapsible.
  * @property {import("../proj.js").ProjectionLike} [projection] Projection. Default is the view projection.
- * @property {import("./State.js").default} [state='ready']
- * @property {boolean} [wrapX=false]
+ * @property {import("./State.js").default} [state='ready'] State.
+ * @property {boolean} [wrapX=false] WrapX.
  */
 
 /**
@@ -42427,12 +43134,12 @@ function (_super) {
   function Source(options) {
     var _this = _super.call(this) || this;
     /**
-     * @private
+     * @protected
      * @type {import("../proj/Projection.js").default}
      */
 
 
-    _this.projection_ = (0, _proj.get)(options.projection);
+    _this.projection = (0, _proj.get)(options.projection);
     /**
      * @private
      * @type {?Attribution}
@@ -42491,7 +43198,7 @@ function (_super) {
 
 
   Source.prototype.getProjection = function () {
-    return this.projection_;
+    return this.projection;
   };
   /**
    * @abstract
@@ -42631,7 +43338,7 @@ var _default = {
 
   /**
    * Triggered when a feature is removed from the source.
-   * See {@link module:ol/source/Vector#clear source.clear()} for exceptions.
+   * See {@link module:ol/source/Vector~VectorSource#clear source.clear()} for exceptions.
    * @event module:ol/source/Vector.VectorSourceEvent#removefeature
    * @api
    */
@@ -42658,6 +43365,10 @@ var _default = {
    */
   FEATURESLOADERROR: 'featuresloaderror'
 };
+/**
+ * @typedef {'addfeature'|'changefeature'|'clear'|'removefeature'|'featuresloadstart'|'featuresloadend'|'featuresloaderror'} VectorSourceEventTypes
+ */
+
 exports.default = _default;
 },{}],"node_modules/ol/loadingstrategy.js":[function(require,module,exports) {
 "use strict";
@@ -42761,10 +43472,12 @@ var withCredentials = false;
  * {@link module:ol/source/Vector} sources use a function of this type to
  * load features.
  *
- * This function takes an {@link module:ol/extent~Extent} representing the area to be loaded,
- * a `{number}` representing the resolution (map units per pixel), an
- * {@link module:ol/proj/Projection} for the projection and success and failure callbacks as
- * arguments. `this` within the function is bound to the
+ * This function takes up to 5 arguments. These are an {@link module:ol/extent~Extent} representing
+ * the area to be loaded, a `{number}` representing the resolution (map units per pixel), an
+ * {@link module:ol/proj/Projection} for the projection, an optional success callback that should get
+ * the loaded features passed as an argument and an optional failure callback with no arguments. If
+ * the callbacks are not used, the corresponding vector source will not fire `'featuresloadend'` and
+ * `'featuresloaderror'` events. `this` within the function is bound to the
  * {@link module:ol/source/Vector} it's called from.
  *
  * The function is responsible for loading the features and adding them to the
@@ -42876,9 +43589,9 @@ function xhr(url, format) {
    * @param {import("./extent.js").Extent} extent Extent.
    * @param {number} resolution Resolution.
    * @param {import("./proj/Projection.js").default} projection Projection.
-   * @param {function(): void=} success Success
+   * @param {function(Array<import("./Feature.js").default>): void} [success] Success
    *      Function called when loading succeeded.
-   * @param {function(): void=} failure Failure
+   * @param {function(): void} [failure] Failure
    *      Function called when loading failed.
    * @this {import("./source/Vector").default}
    */
@@ -42893,11 +43606,11 @@ function xhr(url, format) {
      * projection.
      */
     function (features, dataProjection) {
+      source.addFeatures(features);
+
       if (success !== undefined) {
         success(features);
       }
-
-      source.addFeatures(features);
     },
     /* FIXME handle error */
     failure ? failure : _functions.VOID);
@@ -42978,6 +43691,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -43009,8 +43723,8 @@ function (_super) {
   __extends(VectorSourceEvent, _super);
   /**
    * @param {string} type Type.
-   * @param {import("../Feature.js").default<Geometry>=} opt_feature Feature.
-   * @param {Array<import("../Feature.js").default<Geometry>>=} opt_features Features.
+   * @param {import("../Feature.js").default<Geometry>} [opt_feature] Feature.
+   * @param {Array<import("../Feature.js").default<Geometry>>} [opt_features] Features.
    */
 
 
@@ -43039,6 +43753,15 @@ function (_super) {
 
 exports.VectorSourceEvent = VectorSourceEvent;
 
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("../ObjectEventType").Types, import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").OnSignature<import("./VectorEventType").VectorSourceEventTypes, VectorSourceEvent, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types|
+ *     import("./VectorEventType").VectorSourceEventTypes, Return>} VectorSourceOnSignature
+ */
+
 /**
  * @typedef {Object} Options
  * @property {import("./Source.js").AttributionLike} [attributions] Attributions.
@@ -43050,7 +43773,8 @@ exports.VectorSourceEvent = VectorSourceEvent;
  * @property {import("../featureloader.js").FeatureLoader} [loader]
  * The loader function used to load features, from a remote source for example.
  * If this is not set and `url` is set, the source will create and use an XHR
- * feature loader.
+ * feature loader. The `'featuresloadend'` and `'featuresloaderror'` events
+ * will only fire if the `success` and `failure` callbacks are used.
  *
  * Example:
  *
@@ -43061,7 +43785,7 @@ exports.VectorSourceEvent = VectorSourceEvent;
  *
  * var vectorSource = new Vector({
  *   format: new GeoJSON(),
- *   loader: function(extent, resolution, projection) {
+ *   loader: function(extent, resolution, projection, success, failure) {
  *      var proj = projection.getCode();
  *      var url = 'https://ahocevar.com/geoserver/wfs?service=WFS&' +
  *          'version=1.1.0&request=GetFeature&typename=osm:water_areas&' +
@@ -43071,12 +43795,14 @@ exports.VectorSourceEvent = VectorSourceEvent;
  *      xhr.open('GET', url);
  *      var onError = function() {
  *        vectorSource.removeLoadedExtent(extent);
+ *        failure();
  *      }
  *      xhr.onerror = onError;
  *      xhr.onload = function() {
  *        if (xhr.status == 200) {
- *          vectorSource.addFeatures(
- *              vectorSource.getFormat().readFeatures(xhr.responseText));
+ *          var features = vectorSource.getFormat().readFeatures(xhr.responseText);
+ *          vectorSource.addFeatures(features);
+ *          success(features);
  *        } else {
  *          onError();
  *        }
@@ -43091,12 +43817,12 @@ exports.VectorSourceEvent = VectorSourceEvent;
  * boundaries or TopoJSON sources) allows the renderer to optimise fill and
  * stroke operations.
  * @property {LoadingStrategy} [strategy] The loading strategy to use.
- * By default an {@link module:ol/loadingstrategy~all}
+ * By default an {@link module:ol/loadingstrategy.all}
  * strategy is used, a one-off strategy which loads all features at once.
  * @property {string|import("../featureloader.js").FeatureUrlFunction} [url]
  * Setting this option instructs the source to load features using an XHR loader
- * (see {@link module:ol/featureloader~xhr}). Use a `string` and an
- * {@link module:ol/loadingstrategy~all} for a one-off download of all features from
+ * (see {@link module:ol/featureloader.xhr}). Use a `string` and an
+ * {@link module:ol/loadingstrategy.all} for a one-off download of all features from
  * the given URL. Use a {@link module:ol/featureloader~FeatureUrlFunction} to generate the url with
  * other loading strategies.
  * Requires `format` to be set as well.
@@ -43143,7 +43869,7 @@ var VectorSource =
 function (_super) {
   __extends(VectorSource, _super);
   /**
-   * @param {Options=} opt_options Vector source options.
+   * @param {Options} [opt_options] Vector source options.
    */
 
 
@@ -43157,6 +43883,21 @@ function (_super) {
       state: _State.default.READY,
       wrapX: options.wrapX !== undefined ? options.wrapX : true
     }) || this;
+    /***
+     * @type {VectorSourceOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.on;
+    /***
+     * @type {VectorSourceOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {VectorSourceOnSignature<void>}
+     */
+
+    _this.un;
     /**
      * @private
      * @type {import("../featureloader.js").FeatureLoader}
@@ -43212,6 +43953,12 @@ function (_super) {
      */
 
     _this.loadedExtentsRtree_ = new _RBush.default();
+    /**
+     * @type {number}
+     * @private
+     */
+
+    _this.loadingExtentsCount_ = 0;
     /**
      * @private
      * @type {!Object<string, import("../Feature.js").default<Geometry>>}
@@ -43472,7 +44219,7 @@ function (_super) {
   };
   /**
    * Remove all features from the source.
-   * @param {boolean=} opt_fast Skip dispatching of {@link module:ol/source/Vector.VectorSourceEvent#removefeature} events.
+   * @param {boolean} [opt_fast] Skip dispatching of {@link module:ol/source/Vector.VectorSourceEvent#event:removefeature removefeature} events.
    * @api
    */
 
@@ -43635,7 +44382,8 @@ function (_super) {
     return this.featuresCollection_;
   };
   /**
-   * Get all features on the source in random order.
+   * Get a snapshot of the features currently on the source in random order. The returned array
+   * is a copy, the features are references to the features in the source.
    * @return {Array<import("../Feature.js").default<Geometry>>} Features.
    * @api
    */
@@ -43645,7 +44393,7 @@ function (_super) {
     var features;
 
     if (this.featuresCollection_) {
-      features = this.featuresCollection_.getArray();
+      features = this.featuresCollection_.getArray().slice(0);
     } else if (this.featuresRtree_) {
       features = this.featuresRtree_.getAll();
 
@@ -43692,7 +44440,7 @@ function (_super) {
     if (this.featuresRtree_) {
       return this.featuresRtree_.getInExtent(extent);
     } else if (this.featuresCollection_) {
-      return this.featuresCollection_.getArray();
+      return this.featuresCollection_.getArray().slice(0);
     } else {
       return [];
     }
@@ -43703,7 +44451,7 @@ function (_super) {
    * This method is not available when the source is configured with
    * `useSpatialIndex` set to `false`.
    * @param {import("../coordinate.js").Coordinate} coordinate Coordinate.
-   * @param {function(import("../Feature.js").default<Geometry>):boolean=} opt_filter Feature filter function.
+   * @param {function(import("../Feature.js").default<Geometry>):boolean} [opt_filter] Feature filter function.
    *     The filter function will receive one argument, the {@link module:ol/Feature feature}
    *     and it should return a boolean value. By default, no filtering is made.
    * @return {import("../Feature.js").default<Geometry>} Closest feature.
@@ -43757,7 +44505,7 @@ function (_super) {
    *
    * This method is not available when the source is configured with
    * `useSpatialIndex` set to `false`.
-   * @param {import("../extent.js").Extent=} opt_extent Destination extent. If provided, no new extent
+   * @param {import("../extent.js").Extent} [opt_extent] Destination extent. If provided, no new extent
    *     will be created. Instead, that extent's coordinates will be overwritten.
    * @return {import("../extent.js").Extent} Extent.
    * @api
@@ -43913,7 +44661,6 @@ function (_super) {
   VectorSource.prototype.loadFeatures = function (extent, resolution, projection) {
     var loadedExtentsRtree = this.loadedExtentsRtree_;
     var extentsToLoad = this.strategy_(extent, resolution);
-    this.loading = false;
 
     var _loop_1 = function (i, ii) {
       var extentToLoad = extentsToLoad[i];
@@ -43927,16 +44674,18 @@ function (_super) {
       });
 
       if (!alreadyLoaded) {
+        ++this_1.loadingExtentsCount_;
         this_1.dispatchEvent(new VectorSourceEvent(_VectorEventType.default.FEATURESLOADSTART));
         this_1.loader_.call(this_1, extentToLoad, resolution, projection, function (features) {
+          --this.loadingExtentsCount_;
           this.dispatchEvent(new VectorSourceEvent(_VectorEventType.default.FEATURESLOADEND, undefined, features));
         }.bind(this_1), function () {
+          --this.loadingExtentsCount_;
           this.dispatchEvent(new VectorSourceEvent(_VectorEventType.default.FEATURESLOADERROR));
         }.bind(this_1));
         loadedExtentsRtree.insert(extentToLoad, {
           extent: extentToLoad.slice()
         });
-        this_1.loading = this_1.loader_ !== _functions.VOID;
       }
     };
 
@@ -43945,6 +44694,8 @@ function (_super) {
     for (var i = 0, ii = extentsToLoad.length; i < ii; ++i) {
       _loop_1(i, ii);
     }
+
+    this.loading = this.loader_ === _functions.VOID ? false : this.loadingExtentsCount_ > 0;
   };
 
   VectorSource.prototype.refresh = function () {
@@ -44060,6 +44811,7 @@ function (_super) {
   VectorSource.prototype.setUrl = function (url) {
     (0, _asserts.assert)(this.format_, 7); // `format` must be set when `url` is set
 
+    this.url_ = url;
     this.setLoader((0, _featureloader.xhr)(url, this.format_));
   };
 
@@ -44122,8 +44874,6 @@ var _Style = require("../style/Style.js");
 
 var _proj = require("../proj.js");
 
-var _Object = require("../Object.js");
-
 var _coordinate = require("../coordinate.js");
 
 function _getRequireWildcardCache(nodeInterop) { if (typeof WeakMap !== "function") return null; var cacheBabelInterop = new WeakMap(); var cacheNodeInterop = new WeakMap(); return (_getRequireWildcardCache = function (nodeInterop) { return nodeInterop ? cacheNodeInterop : cacheBabelInterop; })(nodeInterop); }
@@ -44146,6 +44896,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -44198,7 +44949,7 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @property {import("../events/condition.js").Condition} [condition] A function that
  * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event should be handled.
- * By default {@link module:ol/events/condition~noModifierKeys}, i.e. a click,
+ * By default {@link module:ol/events/condition.noModifierKeys}, i.e. a click,
  * adds a vertex or deactivates freehand drawing.
  * @property {boolean} [freehand=false] Operate in freehand mode for lines,
  * polygons, and circles.  This makes the interaction always operate in freehand
@@ -44207,7 +44958,7 @@ var __extends = void 0 && (void 0).__extends || function () {
  * Condition that activates freehand drawing for lines and polygons. This
  * function takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and
  * returns a boolean to indicate whether that event should be handled. The
- * default is {@link module:ol/events/condition~shiftKeyOnly}, meaning that the
+ * default is {@link module:ol/events/condition.shiftKeyOnly}, meaning that the
  * Shift key activates freehand drawing.
  * @property {boolean} [wrapX=false] Wrap the world horizontally on the sketch
  * overlay.
@@ -44314,6 +45065,16 @@ function (_super) {
 
 exports.DrawEvent = DrawEvent;
 
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("../ObjectEventType").Types|
+ *     'change:active', import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").OnSignature<'drawabort'|'drawend'|'drawstart', DrawEvent, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types|
+ *     'change:active'|'drawabort'|'drawend'|'drawstart', Return>} DrawOnSignature
+ */
+
 /**
  * @classdesc
  * Interaction for drawing feature geometries.
@@ -44342,6 +45103,21 @@ function (_super) {
     }
 
     _this = _super.call(this, pointerOptions) || this;
+    /***
+     * @type {DrawOnSignature<import("../Observable").OnReturn>}
+     */
+
+    _this.on;
+    /***
+     * @type {DrawOnSignature<import("../Observable").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {DrawOnSignature<void>}
+     */
+
+    _this.un;
     /**
      * @type {boolean}
      * @private
@@ -44618,7 +45394,7 @@ function (_super) {
       _this.freehandCondition_ = options.freehandCondition ? options.freehandCondition : _condition.shiftKeyOnly;
     }
 
-    _this.addEventListener((0, _Object.getChangeEventType)(_Property.default.ACTIVE), _this.updateState_);
+    _this.addChangeListener(_Property.default.ACTIVE, _this.updateState_);
 
     return _this;
   }
@@ -44753,26 +45529,22 @@ function (_super) {
       this.handlePointerMove_(event);
 
       if (this.shouldHandle_) {
-        switch (true) {
-          case !this.finishCoordinate_:
-            this.startDrawing_(event.coordinate);
+        var startingToDraw = !this.finishCoordinate_;
 
-            if (this.mode_ !== Mode.POINT) {
-              break;
+        if (startingToDraw) {
+          this.startDrawing_(event.coordinate);
+        }
+
+        if (!startingToDraw && this.freehand_) {
+          this.finishDrawing();
+        } else if (!this.freehand_ && (!startingToDraw || this.mode_ === Mode.POINT)) {
+          if (this.atFinish_(event.pixel)) {
+            if (this.finishCondition_(event)) {
+              this.finishDrawing();
             }
-
-          // eslint-disable-next-line no-fallthrough
-
-          case this.freehand_ || this.atFinish_(event.pixel) && this.finishCondition_(event):
-            this.finishDrawing();
-            break;
-
-          case !this.freehand_:
+          } else {
             this.addToDrawing_(event.coordinate);
-            break;
-
-          default:
-            break;
+          }
         }
 
         pass = false;
@@ -44782,7 +45554,7 @@ function (_super) {
     }
 
     if (!pass && this.stopClick_) {
-      event.originalEvent.stopPropagation();
+      event.preventDefault();
     }
 
     return pass;
@@ -44813,7 +45585,7 @@ function (_super) {
     if (this.finishCoordinate_) {
       this.modifyDrawing_(event.coordinate);
     } else {
-      this.createOrUpdateSketchPoint_(event);
+      this.createOrUpdateSketchPoint_(event.coordinate.slice());
     }
   };
   /**
@@ -44868,14 +45640,12 @@ function (_super) {
     return at;
   };
   /**
-   * @param {import("../MapBrowserEvent.js").default} event Event.
+   * @param {import("../coordinate").Coordinate} coordinates Coordinate.
    * @private
    */
 
 
-  Draw.prototype.createOrUpdateSketchPoint_ = function (event) {
-    var coordinates = event.coordinate.slice();
-
+  Draw.prototype.createOrUpdateSketchPoint_ = function (coordinates) {
     if (!this.sketchPoint_) {
       this.sketchPoint_ = new _Feature.default(new _Point.default(coordinates));
       this.updateSketchFeatures_();
@@ -45045,6 +45815,7 @@ function (_super) {
       this.geometryFunction_(this.sketchCoords_, geometry, projection);
     }
 
+    this.createOrUpdateSketchPoint_(coordinate.slice());
     this.updateSketchFeatures_();
 
     if (done) {
@@ -45078,7 +45849,7 @@ function (_super) {
         this.finishCoordinate_ = coordinates[coordinates.length - 2].slice();
         var finishCoordinate = this.finishCoordinate_.slice();
         coordinates[coordinates.length - 1] = finishCoordinate;
-        this.sketchPoint_.setGeometry(new _Point.default(finishCoordinate));
+        this.createOrUpdateSketchPoint_(finishCoordinate);
       }
 
       this.geometryFunction_(coordinates, geometry, projection);
@@ -45098,7 +45869,7 @@ function (_super) {
       if (coordinates.length >= 2) {
         var finishCoordinate = coordinates[coordinates.length - 2].slice();
         coordinates[coordinates.length - 1] = finishCoordinate;
-        this.sketchPoint_.setGeometry(new _Point.default(finishCoordinate));
+        this.createOrUpdateSketchPoint_(finishCoordinate);
       }
 
       sketchLineGeom.setCoordinates(coordinates);
@@ -45333,9 +46104,9 @@ function getDefaultStyleFunction() {
  * Create a `geometryFunction` for `type: 'Circle'` that will create a regular
  * polygon with a user specified number of sides and start angle instead of a
  * `import("../geom/Circle.js").Circle` geometry.
- * @param {number=} opt_sides Number of sides of the regular polygon.
+ * @param {number} [opt_sides] Number of sides of the regular polygon.
  *     Default is 32.
- * @param {number=} opt_angle Angle of the first point in counter-clockwise
+ * @param {number} [opt_angle] Angle of the first point in counter-clockwise
  *     radians. 0 means East.
  *     Default is the angle defined by the heading from the center of the
  *     regular polygon to the current pointer position.
@@ -45417,27 +46188,30 @@ function createBox() {
 
 
 function getMode(type) {
-  var mode;
+  switch (type) {
+    case _GeometryType.default.POINT:
+    case _GeometryType.default.MULTI_POINT:
+      return Mode.POINT;
 
-  if (type === _GeometryType.default.POINT || type === _GeometryType.default.MULTI_POINT) {
-    mode = Mode.POINT;
-  } else if (type === _GeometryType.default.LINE_STRING || type === _GeometryType.default.MULTI_LINE_STRING) {
-    mode = Mode.LINE_STRING;
-  } else if (type === _GeometryType.default.POLYGON || type === _GeometryType.default.MULTI_POLYGON) {
-    mode = Mode.POLYGON;
-  } else if (type === _GeometryType.default.CIRCLE) {
-    mode = Mode.CIRCLE;
+    case _GeometryType.default.LINE_STRING:
+    case _GeometryType.default.MULTI_LINE_STRING:
+      return Mode.LINE_STRING;
+
+    case _GeometryType.default.POLYGON:
+    case _GeometryType.default.MULTI_POLYGON:
+      return Mode.POLYGON;
+
+    case _GeometryType.default.CIRCLE:
+      return Mode.CIRCLE;
+
+    default:
+      throw new Error('Invalid type: ' + type);
   }
-
-  return (
-    /** @type {!Mode} */
-    mode
-  );
 }
 
 var _default = Draw;
 exports.default = _default;
-},{"../geom/Circle.js":"node_modules/ol/geom/Circle.js","../events/Event.js":"node_modules/ol/events/Event.js","../events/EventType.js":"node_modules/ol/events/EventType.js","../Feature.js":"node_modules/ol/Feature.js","../geom/GeometryType.js":"node_modules/ol/geom/GeometryType.js","./Property.js":"node_modules/ol/interaction/Property.js","../geom/LineString.js":"node_modules/ol/geom/LineString.js","../MapBrowserEvent.js":"node_modules/ol/MapBrowserEvent.js","../MapBrowserEventType.js":"node_modules/ol/MapBrowserEventType.js","../geom/MultiLineString.js":"node_modules/ol/geom/MultiLineString.js","../geom/MultiPoint.js":"node_modules/ol/geom/MultiPoint.js","../geom/MultiPolygon.js":"node_modules/ol/geom/MultiPolygon.js","../geom/Point.js":"node_modules/ol/geom/Point.js","./Pointer.js":"node_modules/ol/interaction/Pointer.js","../geom/Polygon.js":"node_modules/ol/geom/Polygon.js","../layer/Vector.js":"node_modules/ol/layer/Vector.js","../source/Vector.js":"node_modules/ol/source/Vector.js","../functions.js":"node_modules/ol/functions.js","../events/condition.js":"node_modules/ol/events/condition.js","../extent.js":"node_modules/ol/extent.js","../style/Style.js":"node_modules/ol/style/Style.js","../proj.js":"node_modules/ol/proj.js","../Object.js":"node_modules/ol/Object.js","../coordinate.js":"node_modules/ol/coordinate.js"}],"node_modules/ol/interaction/Extent.js":[function(require,module,exports) {
+},{"../geom/Circle.js":"node_modules/ol/geom/Circle.js","../events/Event.js":"node_modules/ol/events/Event.js","../events/EventType.js":"node_modules/ol/events/EventType.js","../Feature.js":"node_modules/ol/Feature.js","../geom/GeometryType.js":"node_modules/ol/geom/GeometryType.js","./Property.js":"node_modules/ol/interaction/Property.js","../geom/LineString.js":"node_modules/ol/geom/LineString.js","../MapBrowserEvent.js":"node_modules/ol/MapBrowserEvent.js","../MapBrowserEventType.js":"node_modules/ol/MapBrowserEventType.js","../geom/MultiLineString.js":"node_modules/ol/geom/MultiLineString.js","../geom/MultiPoint.js":"node_modules/ol/geom/MultiPoint.js","../geom/MultiPolygon.js":"node_modules/ol/geom/MultiPolygon.js","../geom/Point.js":"node_modules/ol/geom/Point.js","./Pointer.js":"node_modules/ol/interaction/Pointer.js","../geom/Polygon.js":"node_modules/ol/geom/Polygon.js","../layer/Vector.js":"node_modules/ol/layer/Vector.js","../source/Vector.js":"node_modules/ol/source/Vector.js","../functions.js":"node_modules/ol/functions.js","../events/condition.js":"node_modules/ol/events/condition.js","../extent.js":"node_modules/ol/extent.js","../style/Style.js":"node_modules/ol/style/Style.js","../proj.js":"node_modules/ol/proj.js","../coordinate.js":"node_modules/ol/coordinate.js"}],"node_modules/ol/interaction/Extent.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -45489,6 +46263,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -45508,7 +46283,7 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @property {import("../events/condition.js").Condition} [condition] A function that
  * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event should be handled.
- * Default is {@link module:ol/events/condition~always}.
+ * Default is {@link module:ol/events/condition.always}.
  * @property {import("../extent.js").Extent} [extent] Initial extent. Defaults to no
  * initial extent.
  * @property {import("../style/Style.js").StyleLike} [boxStyle]
@@ -45567,6 +46342,16 @@ function (_super) {
 
 exports.ExtentEvent = ExtentEvent;
 
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("../ObjectEventType").Types|
+ *     'change:active', import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").OnSignature<'extentchanged', ExtentEvent, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types|
+ *     'change:active'|'extentchanged', Return>} ExtentOnSignature
+ */
+
 /**
  * @classdesc
  * Allows the user to draw a vector box by clicking and dragging on the map.
@@ -45581,7 +46366,7 @@ var Extent =
 function (_super) {
   __extends(Extent, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -45592,6 +46377,21 @@ function (_super) {
     _this = _super.call(this,
     /** @type {import("./Pointer.js").Options} */
     options) || this;
+    /***
+     * @type {ExtentOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.on;
+    /***
+     * @type {ExtentOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {ExtentOnSignature<void>}
+     */
+
+    _this.un;
     /**
      * Condition
      * @type {import("../events/condition.js").Condition}
@@ -45686,7 +46486,7 @@ function (_super) {
   /**
    * @param {import("../pixel.js").Pixel} pixel cursor location
    * @param {import("../PluggableMap.js").default} map map
-   * @returns {import("../coordinate.js").Coordinate|null} snapped vertex on extent
+   * @return {import("../coordinate.js").Coordinate|null} snapped vertex on extent
    * @private
    */
 
@@ -45746,7 +46546,7 @@ function (_super) {
   };
   /**
    * @param {import("../extent.js").Extent} extent extent
-   * @returns {Feature} extent as featrue
+   * @return {Feature} extent as featrue
    * @private
    */
 
@@ -45775,7 +46575,7 @@ function (_super) {
   };
   /**
    * @param {import("../coordinate.js").Coordinate} vertex location of feature
-   * @returns {Feature} vertex as feature
+   * @return {Feature} vertex as feature
    * @private
    */
 
@@ -45984,7 +46784,7 @@ function getDefaultPointerStyleFunction() {
 }
 /**
  * @param {import("../coordinate.js").Coordinate} fixedPoint corner that will be unchanged in the new extent
- * @returns {function (import("../coordinate.js").Coordinate): import("../extent.js").Extent} event handler
+ * @return {function (import("../coordinate.js").Coordinate): import("../extent.js").Extent} event handler
  */
 
 
@@ -45996,7 +46796,7 @@ function getPointHandler(fixedPoint) {
 /**
  * @param {import("../coordinate.js").Coordinate} fixedP1 first corner that will be unchanged in the new extent
  * @param {import("../coordinate.js").Coordinate} fixedP2 second corner that will be unchanged in the new extent
- * @returns {function (import("../coordinate.js").Coordinate): import("../extent.js").Extent|null} event handler
+ * @return {function (import("../coordinate.js").Coordinate): import("../extent.js").Extent|null} event handler
  */
 
 
@@ -46015,7 +46815,7 @@ function getEdgeHandler(fixedP1, fixedP2) {
 }
 /**
  * @param {import("../extent.js").Extent} extent extent
- * @returns {Array<Array<import("../coordinate.js").Coordinate>>} extent line segments
+ * @return {Array<Array<import("../coordinate.js").Coordinate>>} extent line segments
  */
 
 
@@ -46091,6 +46891,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -46141,12 +46942,12 @@ var ModifyEventType = {
 };
 /**
  * @typedef {Object} SegmentData
- * @property {Array<number>} [depth]
- * @property {Feature} feature
- * @property {import("../geom/SimpleGeometry.js").default} geometry
- * @property {number} [index]
- * @property {Array<import("../extent.js").Extent>} segment
- * @property {Array<SegmentData>} [featureSegments]
+ * @property {Array<number>} [depth] Depth.
+ * @property {import("../Feature").FeatureLike} feature Feature.
+ * @property {import("../geom/SimpleGeometry.js").default} geometry Geometry.
+ * @property {number} [index] Index.
+ * @property {Array<Array<number>>} segment Segment.
+ * @property {Array<SegmentData>} [featureSegments] FeatureSegments.
  */
 
 /**
@@ -46155,16 +46956,16 @@ var ModifyEventType = {
  * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event will be considered to add or move a
  * vertex to the sketch. Default is
- * {@link module:ol/events/condition~primaryAction}.
+ * {@link module:ol/events/condition.primaryAction}.
  * @property {import("../events/condition.js").Condition} [deleteCondition] A function
  * that takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event should be handled. By default,
- * {@link module:ol/events/condition~singleClick} with
- * {@link module:ol/events/condition~altKeyOnly} results in a vertex deletion.
+ * {@link module:ol/events/condition.singleClick} with
+ * {@link module:ol/events/condition.altKeyOnly} results in a vertex deletion.
  * @property {import("../events/condition.js").Condition} [insertVertexCondition] A
  * function that takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and
  * returns a boolean to indicate whether a new vertex should be added to the sketch
- * features. Default is {@link module:ol/events/condition~always}.
+ * features. Default is {@link module:ol/events/condition.always}.
  * @property {number} [pixelTolerance=10] Pixel tolerance for considering the
  * pointer close enough to a segment or vertex for editing.
  * @property {import("../style/Style.js").StyleLike} [style]
@@ -46188,6 +46989,8 @@ var ModifyEventType = {
  * provided, a vector source must be provided with the `source` option.
  * @property {boolean} [wrapX=false] Wrap the world horizontally on the sketch
  * overlay.
+ * @property {boolean} [snapToPointer=!hitDetection] The vertex, point or segment being modified snaps to the
+ * pointer coordinate when clicked within the `pixelTolerance`.
  */
 
 /**
@@ -46202,7 +47005,7 @@ function (_super) {
   __extends(ModifyEvent, _super);
   /**
    * @param {ModifyEventType} type Type.
-   * @param {Collection<Feature>} features
+   * @param {Collection<import("../Feature").FeatureLike>} features
    * The features modified.
    * @param {import("../MapBrowserEvent.js").default} MapBrowserEvent
    * Associated {@link module:ol/MapBrowserEvent}.
@@ -46213,7 +47016,7 @@ function (_super) {
     var _this = _super.call(this, type) || this;
     /**
      * The features being modified.
-     * @type {Collection<Feature>}
+     * @type {Collection<import("../Feature").FeatureLike>}
      * @api
      */
 
@@ -46233,6 +47036,16 @@ function (_super) {
 }(_Event.default);
 
 exports.ModifyEvent = ModifyEvent;
+
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("../ObjectEventType").Types|
+ *     'change:active', import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").OnSignature<'modifyend'|'modifystart', ModifyEvent, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types|
+ *     'change:active'|'modifyend'|'modifystart', Return>} ModifyOnSignature
+ */
 
 /**
  * @classdesc
@@ -46268,8 +47081,23 @@ function (_super) {
     var _this = _super.call(this,
     /** @type {import("./Pointer.js").Options} */
     options) || this;
-    /** @private */
+    /***
+     * @type {ModifyOnSignature<import("../Observable.js").OnReturn>}
+     */
 
+
+    _this.on;
+    /***
+     * @type {ModifyOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {ModifyOnSignature<void>}
+     */
+
+    _this.un;
+    /** @private */
 
     _this.boundHandleFeatureChange_ = _this.handleFeatureChange_.bind(_this);
     /**
@@ -46329,7 +47157,7 @@ function (_super) {
 
     _this.ignoreNextSingleClick_ = false;
     /**
-     * @type {Collection<Feature>}
+     * @type {Collection<import("../Feature").FeatureLike>}
      * @private
      */
 
@@ -46456,6 +47284,11 @@ function (_super) {
      */
 
     _this.delta_ = [0, 0];
+    /**
+     * @private
+     */
+
+    _this.snapToPointer_ = options.snapToPointer === undefined ? !_this.hitDetection_ : options.snapToPointer;
     return _this;
   }
   /**
@@ -46496,14 +47329,22 @@ function (_super) {
       var features = this.featuresBeingModified_.getArray();
 
       for (var i = 0, ii = segments.length; i < ii; ++i) {
-        var feature = segments[i][0].feature;
+        var segment = segments[i];
 
-        if (features.indexOf(feature) === -1) {
-          this.featuresBeingModified_.push(feature);
+        for (var s = 0, ss = segment.length; s < ss; ++s) {
+          var feature = segment[s].feature;
+
+          if (feature && features.indexOf(feature) === -1) {
+            this.featuresBeingModified_.push(feature);
+          }
         }
       }
 
-      this.dispatchEvent(new ModifyEvent(ModifyEventType.MODIFYSTART, this.featuresBeingModified_, evt));
+      if (this.featuresBeingModified_.getLength() === 0) {
+        this.featuresBeingModified_ = null;
+      } else {
+        this.dispatchEvent(new ModifyEvent(ModifyEventType.MODIFYSTART, this.featuresBeingModified_, evt));
+      }
     }
   };
   /**
@@ -46875,7 +47716,7 @@ function (_super) {
   };
   /**
    * @param {import("../coordinate.js").Coordinate} coordinates Coordinates.
-   * @param {Array<Feature>} features The features being modified.
+   * @param {Array<import("../Feature").FeatureLike>} features The features being modified.
    * @param {Array<import("../geom/SimpleGeometry.js").default>} geometries The geometries being modified.
    * @return {Feature} Vertex feature.
    * @private
@@ -47186,7 +48027,7 @@ function (_super) {
   /**
    * @param {import("../pixel.js").Pixel} pixel Pixel
    * @param {import("../PluggableMap.js").default} map Map.
-   * @param {import("../coordinate.js").Coordinate=} opt_coordinate The pixel Coordinate.
+   * @param {import("../coordinate.js").Coordinate} [opt_coordinate] The pixel Coordinate.
    * @private
    */
 
@@ -47200,8 +48041,11 @@ function (_super) {
     var sortByDistance = function (a, b) {
       return projectedDistanceToSegmentDataSquared(pixelCoordinate, a, projection) - projectedDistanceToSegmentDataSquared(pixelCoordinate, b, projection);
     };
+    /** @type {Array<SegmentData>|undefined} */
 
-    var nodes, hitPointGeometry;
+
+    var nodes;
+    var hitPointGeometry;
 
     if (this.hitDetection_) {
       var layerFilter = typeof this.hitDetection_ === 'object' ? function (layer) {
@@ -47210,9 +48054,9 @@ function (_super) {
       map.forEachFeatureAtPixel(pixel, function (feature, layer, geometry) {
         geometry = geometry || feature.getGeometry();
 
-        if (geometry.getType() === _GeometryType.default.POINT) {
+        if (geometry.getType() === _GeometryType.default.POINT && (0, _array.includes)(_this.features_.getArray(), feature)) {
           hitPointGeometry = geometry;
-          var coordinate = geometry.getCoordinates();
+          var coordinate = geometry.getFlatCoordinates().slice(0, 2);
           nodes = [{
             feature: feature,
             geometry: geometry,
@@ -47244,8 +48088,11 @@ function (_super) {
         /** @type {Object<string, boolean>} */
         var vertexSegments = {};
         vertexSegments[(0, _util.getUid)(closestSegment)] = true;
-        this.delta_[0] = vertex[0] - pixelCoordinate[0];
-        this.delta_[1] = vertex[1] - pixelCoordinate[1];
+
+        if (!this.snapToPointer_) {
+          this.delta_[0] = vertex[0] - pixelCoordinate[0];
+          this.delta_[1] = vertex[1] - pixelCoordinate[1];
+        }
 
         if (node.geometry.getType() === _GeometryType.default.CIRCLE && node.index === CIRCLE_CIRCUMFERENCE_INDEX) {
           this.snappedToVertex_ = true;
@@ -47703,6 +48550,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -47741,13 +48589,13 @@ var SelectEventType = {
  * @property {import("../events/condition.js").Condition} [addCondition] A function
  * that takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event should be handled.
- * By default, this is {@link module:ol/events/condition~never}. Use this if you
+ * By default, this is {@link module:ol/events/condition.never}. Use this if you
  * want to use different events for add and remove instead of `toggle`.
  * @property {import("../events/condition.js").Condition} [condition] A function that
  * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event should be handled. This is the event
  * for the selected features as a whole. By default, this is
- * {@link module:ol/events/condition~singleClick}. Clicking on a feature selects that
+ * {@link module:ol/events/condition.singleClick}. Clicking on a feature selects that
  * feature and removes any that were in the selection. Clicking outside any
  * feature removes all from the selection.
  * See `toggle`, `add`, `remove` options for adding/removing extra features to/
@@ -47766,13 +48614,13 @@ var SelectEventType = {
  * @property {import("../events/condition.js").Condition} [removeCondition] A function
  * that takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event should be handled.
- * By default, this is {@link module:ol/events/condition~never}. Use this if you
+ * By default, this is {@link module:ol/events/condition.never}. Use this if you
  * want to use different events for add and remove instead of `toggle`.
  * @property {import("../events/condition.js").Condition} [toggleCondition] A function
  * that takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
  * boolean to indicate whether that event should be handled. This is in addition
  * to the `condition` event. By default,
- * {@link module:ol/events/condition~shiftKeyOnly}, i.e. pressing `shift` as
+ * {@link module:ol/events/condition.shiftKeyOnly}, i.e. pressing `shift` as
  * well as the `condition` event, adds that feature to the current selection if
  * it is not currently selected, and removes it if it is. See `add` and `remove`
  * if you want to use different events instead of a toggle.
@@ -47845,9 +48693,19 @@ exports.SelectEvent = SelectEvent;
 
 /**
  * Original feature styles to reset to when features are no longer selected.
- * @type {Object.<number, import("../style/Style.js").default|Array.<import("../style/Style.js").default>|import("../style/Style.js").StyleFunction>}
+ * @type {Object<number, import("../style/Style.js").default|Array<import("../style/Style.js").default>|import("../style/Style.js").StyleFunction>}
  */
 var originalFeatureStyles = {};
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("../ObjectEventType").Types|
+ *     'change:active', import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").OnSignature<'select', SelectEvent, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types|
+ *     'change:active'|'select', Return>} SelectOnSignature
+ */
+
 /**
  * @classdesc
  * Interaction for selecting vector features. By default, selected features are
@@ -47869,13 +48727,28 @@ var Select =
 function (_super) {
   __extends(Select, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
   function Select(opt_options) {
     var _this = _super.call(this) || this;
+    /***
+     * @type {SelectOnSignature<import("../Observable.js").OnReturn>}
+     */
 
+
+    _this.on;
+    /***
+     * @type {SelectOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {SelectOnSignature<void>}
+     */
+
+    _this.un;
     var options = opt_options ? opt_options : {};
     /**
      * @private
@@ -47931,7 +48804,7 @@ function (_super) {
     _this.hitTolerance_ = options.hitTolerance ? options.hitTolerance : 0;
     /**
      * @private
-     * @type {import("../style/Style.js").default|Array.<import("../style/Style.js").default>|import("../style/Style.js").StyleFunction|null}
+     * @type {import("../style/Style.js").default|Array<import("../style/Style.js").default>|import("../style/Style.js").StyleFunction|null}
      */
 
     _this.style_ = options.style !== undefined ? options.style : getDefaultStyleFunction();
@@ -47997,7 +48870,7 @@ function (_super) {
   };
   /**
    * Returns the Hit-detection tolerance.
-   * @returns {number} Hit tolerance in pixels.
+   * @return {number} Hit tolerance in pixels.
    * @api
    */
 
@@ -48316,6 +49189,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -48332,15 +49206,15 @@ var __extends = void 0 && (void 0).__extends || function () {
 
 /**
  * @typedef {Object} Result
- * @property {boolean} snapped
- * @property {import("../coordinate.js").Coordinate|null} vertex
- * @property {import("../pixel.js").Pixel|null} vertexPixel
+ * @property {boolean} snapped Snapped.
+ * @property {import("../coordinate.js").Coordinate|null} vertex Vertex.
+ * @property {import("../pixel.js").Pixel|null} vertexPixel VertexPixel.
  */
 
 /**
  * @typedef {Object} SegmentData
- * @property {import("../Feature.js").default} feature
- * @property {Array<import("../coordinate.js").Coordinate>} segment
+ * @property {import("../Feature.js").default} feature Feature.
+ * @property {Array<import("../coordinate.js").Coordinate>} segment Segment.
  */
 
 /**
@@ -48407,7 +49281,7 @@ var Snap =
 function (_super) {
   __extends(Snap, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -48516,7 +49390,7 @@ function (_super) {
   /**
    * Add a feature to the collection of features that we may snap to.
    * @param {import("../Feature.js").default} feature Feature.
-   * @param {boolean=} opt_listen Whether to listen to the feature change or not
+   * @param {boolean} [opt_listen] Whether to listen to the feature change or not
    *     Defaults to `true`.
    * @api
    */
@@ -48652,7 +49526,7 @@ function (_super) {
   /**
    * Remove a feature from the collection of features that we may snap to.
    * @param {import("../Feature.js").default} feature Feature
-   * @param {boolean=} opt_unlisten Whether to unlisten to the feature change
+   * @param {boolean} [opt_unlisten] Whether to unlisten to the feature change
    *     or not. Defaults to `true`.
    * @api
    */
@@ -49041,7 +49915,7 @@ var _Pointer = _interopRequireDefault(require("./Pointer.js"));
 
 var _functions = require("../functions.js");
 
-var _Object = require("../Object.js");
+var _condition = require("../events/condition.js");
 
 var _array = require("../array.js");
 
@@ -49061,6 +49935,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -49110,6 +49985,10 @@ var TranslateEventType = {
 
 /**
  * @typedef {Object} Options
+ * @property {import("../events/condition.js").Condition} [condition] A function that
+ * takes an {@link module:ol/MapBrowserEvent~MapBrowserEvent} and returns a
+ * boolean to indicate whether that event should be handled.
+ * Default is {@link module:ol/events/condition.always}.
  * @property {Collection<import("../Feature.js").default>} [features] Only features contained in this collection will be able to be translated. If
  * not specified, all features on the map will be able to be translated.
  * @property {Array<import("../layer/Layer.js").default>|function(import("../layer/Layer.js").default): boolean} [layers] A list of layers from which features should be
@@ -49185,6 +50064,16 @@ function (_super) {
 
 exports.TranslateEvent = TranslateEvent;
 
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("../ObjectEventType").Types|
+ *     'change:active', import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").OnSignature<'translateend'|'translatestart'|'translating', TranslateEvent, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types|
+ *     'change:active'|'translateend'|'translatestart'|'translating', Return>} TranslateOnSignature
+ */
+
 /**
  * @classdesc
  * Interaction for translating (moving) features.
@@ -49197,7 +50086,7 @@ var Translate =
 function (_super) {
   __extends(Translate, _super);
   /**
-   * @param {Options=} opt_options Options.
+   * @param {Options} [opt_options] Options.
    */
 
 
@@ -49208,6 +50097,21 @@ function (_super) {
     _this = _super.call(this,
     /** @type {import("./Pointer.js").Options} */
     options) || this;
+    /***
+     * @type {TranslateOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.on;
+    /***
+     * @type {TranslateOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {TranslateOnSignature<void>}
+     */
+
+    _this.un;
     /**
      * The last position we translated to.
      * @type {import("../coordinate.js").Coordinate}
@@ -49265,13 +50169,19 @@ function (_super) {
 
     _this.hitTolerance_ = options.hitTolerance ? options.hitTolerance : 0;
     /**
+     * @private
+     * @type {import("../events/condition.js").Condition}
+     */
+
+    _this.condition_ = options.condition ? options.condition : _condition.always;
+    /**
      * @type {import("../Feature.js").default}
      * @private
      */
 
     _this.lastFeature_ = null;
 
-    _this.addEventListener((0, _Object.getChangeEventType)(_Property.default.ACTIVE), _this.handleActiveChanged_);
+    _this.addChangeListener(_Property.default.ACTIVE, _this.handleActiveChanged_);
 
     return _this;
   }
@@ -49283,6 +50193,10 @@ function (_super) {
 
 
   Translate.prototype.handleDownEvent = function (event) {
+    if (!event.originalEvent || !this.condition_(event)) {
+      return false;
+    }
+
     this.lastFeature_ = this.featuresAtPixel_(event.pixel, event.map);
 
     if (!this.lastCoordinate_ && this.lastFeature_) {
@@ -49379,7 +50293,7 @@ function (_super) {
   };
   /**
    * Returns the Hit-detection tolerance.
-   * @returns {number} Hit tolerance in pixels.
+   * @return {number} Hit tolerance in pixels.
    * @api
    */
 
@@ -49446,7 +50360,7 @@ function (_super) {
 
 var _default = Translate;
 exports.default = _default;
-},{"../Collection.js":"node_modules/ol/Collection.js","../events/Event.js":"node_modules/ol/events/Event.js","./Property.js":"node_modules/ol/interaction/Property.js","./Pointer.js":"node_modules/ol/interaction/Pointer.js","../functions.js":"node_modules/ol/functions.js","../Object.js":"node_modules/ol/Object.js","../array.js":"node_modules/ol/array.js"}],"node_modules/ol/interaction.js":[function(require,module,exports) {
+},{"../Collection.js":"node_modules/ol/Collection.js","../events/Event.js":"node_modules/ol/events/Event.js","./Property.js":"node_modules/ol/interaction/Property.js","./Pointer.js":"node_modules/ol/interaction/Pointer.js","../functions.js":"node_modules/ol/functions.js","../events/condition.js":"node_modules/ol/events/condition.js","../array.js":"node_modules/ol/array.js"}],"node_modules/ol/interaction.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -49665,7 +50579,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
  * * {@link module:ol/interaction/MouseWheelZoom~MouseWheelZoom}
  * * {@link module:ol/interaction/DragZoom~DragZoom}
  *
- * @param {DefaultsOptions=} opt_options Defaults options.
+ * @param {DefaultsOptions} [opt_options] Defaults options.
  * @return {import("./Collection.js").default<import("./interaction/Interaction.js").default>}
  * A collection of interactions to be used with the {@link module:ol/Map~Map}
  * constructor's `interactions` option.
@@ -49776,6 +50690,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -49924,6 +50839,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -49938,7 +50854,18 @@ var __extends = void 0 && (void 0).__extends || function () {
  */
 
 
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("./Base").BaseLayerObjectEventTypes|
+ *     'change:source'|'change:preload'|'change:useInterimTilesOnError', import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").OnSignature<import("../render/EventType").LayerRenderEventTypes, import("../render/Event").default, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("./Base").BaseLayerObjectEventTypes|
+ *   'change:source'|'change:preload'|'change:useInterimTilesOnError'|import("../render/EventType").LayerRenderEventTypes, Return>} BaseTileLayerOnSignature
+ */
+
 /**
+ * @template {import("../source/Tile.js").default} TileSourceType
  * @typedef {Object} Options
  * @property {string} [className='ol-layer'] A CSS class name to set to the layer element.
  * @property {number} [opacity=1] Opacity (0, 1).
@@ -49959,12 +50886,13 @@ var __extends = void 0 && (void 0).__extends || function () {
  * be visible.
  * @property {number} [preload=0] Preload. Load low-resolution tiles up to `preload` levels. `0`
  * means no preloading.
- * @property {import("../source/Tile.js").default} [source] Source for this layer.
+ * @property {TileSourceType} [source] Source for this layer.
  * @property {import("../PluggableMap.js").default} [map] Sets the layer as overlay on a map. The map will not manage
  * this layer in its layers collection, and the layer will be rendered on top. This is useful for
  * temporary layers. The standard way to add a layer to a map and have it managed by the map is to
- * use {@link module:ol/Map#addLayer}.
+ * use {@link import("../PluggableMap.js").default#addLayer map.addLayer()}.
  * @property {boolean} [useInterimTilesOnError=true] Use interim tiles on error.
+ * @property {Object<string, *>} [properties] Arbitrary observable properties. Can be accessed with `#get()` and `#set()`.
  */
 
 /**
@@ -49975,7 +50903,8 @@ var __extends = void 0 && (void 0).__extends || function () {
  * property on the layer object; for example, setting `title: 'My Title'` in the
  * options means that `title` is observable, and has get/set accessors.
  *
- * @extends {Layer<import("../source/Tile.js").default>}
+ * @template {import("../source/Tile.js").default} TileSourceType
+ * @extends {Layer<TileSourceType>}
  * @api
  */
 var BaseTileLayer =
@@ -49983,7 +50912,7 @@ var BaseTileLayer =
 function (_super) {
   __extends(BaseTileLayer, _super);
   /**
-   * @param {Options=} opt_options Tile layer options.
+   * @param {Options<TileSourceType>} [opt_options] Tile layer options.
    */
 
 
@@ -49995,6 +50924,21 @@ function (_super) {
     delete baseOptions.preload;
     delete baseOptions.useInterimTilesOnError;
     _this = _super.call(this, baseOptions) || this;
+    /***
+     * @type {BaseTileLayerOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.on;
+    /***
+     * @type {BaseTileLayerOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {BaseTileLayerOnSignature<void>}
+     */
+
+    _this.un;
 
     _this.setPreload(options.preload !== undefined ? options.preload : 0);
 
@@ -50205,7 +51149,7 @@ function () {
  * @param {number} maxX Maximum X.
  * @param {number} minY Minimum Y.
  * @param {number} maxY Maximum Y.
- * @param {TileRange=} tileRange TileRange.
+ * @param {TileRange} [tileRange] TileRange.
  * @return {TileRange} Tile range.
  */
 
@@ -50244,8 +51188,6 @@ var _obj = require("../../obj.js");
 
 var _extent = require("../../extent.js");
 
-var _canvas = require("../../render/canvas.js");
-
 var _proj = require("../../proj.js");
 
 var _util = require("../../util.js");
@@ -50268,6 +51210,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -50518,7 +51461,7 @@ function (_super) {
     var canvasScale = tileResolution / viewResolution; // set forward and inverse pixel transforms
 
     (0, _transform.compose)(this.pixelTransform, frameState.size[0] / 2, frameState.size[1] / 2, 1 / tilePixelRatio, 1 / tilePixelRatio, rotation, -width / 2, -height / 2);
-    var canvasTransform = (0, _canvas.createTransformString)(this.pixelTransform);
+    var canvasTransform = (0, _transform.toString)(this.pixelTransform);
     this.useContainer(target, canvasTransform, layerState.opacity);
     var context = this.context;
     var canvas = context.canvas;
@@ -50572,12 +51515,12 @@ function (_super) {
         tilesToDraw[tileCoordKey];
         var tileCoord = tile.tileCoord; // Calculate integer positions and sizes so that tiles align
 
-        var floatX = origin_1[0] - (originTileCoord[1] - tileCoord[1]) * dx_1;
-        var nextX = Math.round(floatX + dx_1);
-        var floatY = origin_1[1] - (originTileCoord[2] - tileCoord[2]) * dy_1;
-        var nextY = Math.round(floatY + dy_1);
-        var x = Math.round(floatX);
-        var y = Math.round(floatY);
+        var xIndex = originTileCoord[1] - tileCoord[1];
+        var nextX = Math.round(origin_1[0] - (xIndex - 1) * dx_1);
+        var yIndex = originTileCoord[2] - tileCoord[2];
+        var nextY = Math.round(origin_1[1] - (yIndex - 1) * dy_1);
+        var x = Math.round(origin_1[0] - xIndex * dx_1);
+        var y = Math.round(origin_1[1] - yIndex * dy_1);
         var w = nextX - x;
         var h = nextY - y;
         var transition = z === currentZ;
@@ -50618,9 +51561,11 @@ function (_super) {
 
         if (clips && !inTransition) {
           context.restore();
+          this.renderedTiles.unshift(tile);
+        } else {
+          this.renderedTiles.push(tile);
         }
 
-        this.renderedTiles.push(tile);
         this.updateUsedTiles(frameState.usedTiles, tileSource, tile);
       }
     }
@@ -50767,7 +51712,7 @@ function (_super) {
    * @param {import("../../extent.js").Extent} extent Extent.
    * @param {number} currentZ Current Z.
    * @param {number} preload Load low resolution tiles up to 'preload' levels.
-   * @param {function(import("../../Tile.js").default)=} opt_tileCallback Tile callback.
+   * @param {function(import("../../Tile.js").default):void} [opt_tileCallback] Tile callback.
    * @protected
    */
 
@@ -50827,7 +51772,7 @@ function (_super) {
 CanvasTileLayerRenderer.prototype.getLayer;
 var _default = CanvasTileLayerRenderer;
 exports.default = _default;
-},{"./Layer.js":"node_modules/ol/renderer/canvas/Layer.js","../../TileRange.js":"node_modules/ol/TileRange.js","../../TileState.js":"node_modules/ol/TileState.js","../../transform.js":"node_modules/ol/transform.js","../../obj.js":"node_modules/ol/obj.js","../../extent.js":"node_modules/ol/extent.js","../../render/canvas.js":"node_modules/ol/render/canvas.js","../../proj.js":"node_modules/ol/proj.js","../../util.js":"node_modules/ol/util.js","../../array.js":"node_modules/ol/array.js"}],"node_modules/ol/layer/Tile.js":[function(require,module,exports) {
+},{"./Layer.js":"node_modules/ol/renderer/canvas/Layer.js","../../TileRange.js":"node_modules/ol/TileRange.js","../../TileState.js":"node_modules/ol/TileState.js","../../transform.js":"node_modules/ol/transform.js","../../obj.js":"node_modules/ol/obj.js","../../extent.js":"node_modules/ol/extent.js","../../proj.js":"node_modules/ol/proj.js","../../util.js":"node_modules/ol/util.js","../../array.js":"node_modules/ol/array.js"}],"node_modules/ol/layer/Tile.js":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
@@ -50855,6 +51800,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -50877,6 +51823,8 @@ var __extends = void 0 && (void 0).__extends || function () {
  * property on the layer object; for example, setting `title: 'My Title'` in the
  * options means that `title` is observable, and has get/set accessors.
  *
+ * @template {import("../source/Tile.js").default} TileSourceType
+ * @extends {BaseTileLayer<TileSourceType>}
  * @api
  */
 var TileLayer =
@@ -50884,7 +51832,7 @@ var TileLayer =
 function (_super) {
   __extends(TileLayer, _super);
   /**
-   * @param {import("./BaseTile.js").Options=} opt_options Tile layer options.
+   * @param {import("./BaseTile.js").Options<TileSourceType>} [opt_options] Tile layer options.
    */
 
 
@@ -50941,6 +51889,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -51027,7 +51976,7 @@ function (_super) {
   /**
    * @param {import("./tilecoord.js").TileCoord} tileCoord Tile coordinate.
    * @param {import("./TileState.js").default} state State.
-   * @param {Options=} opt_options Tile options.
+   * @param {Options} [opt_options] Tile options.
    */
 
 
@@ -51054,14 +52003,6 @@ function (_super) {
      */
 
     _this.interimTile = null;
-    /**
-     * The tile is available at the highest possible resolution. Subclasses can
-     * set this to `false` initially. Tile load listeners will not be
-     * unregistered before this is set to `true` and a `#changed()` is called.
-     * @type {boolean}
-     */
-
-    _this.hifi = true;
     /**
      * A key assigned to the tile. This is used by the tile source to determine
      * if this tile can effectively be used, or if a new tile should be created
@@ -51321,6 +52262,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -51345,7 +52287,7 @@ function (_super) {
    * @param {string} src Image source URI.
    * @param {?string} crossOrigin Cross origin.
    * @param {import("./Tile.js").LoadFunction} tileLoadFunction Tile load function.
-   * @param {import("./Tile.js").Options=} opt_options Tile options.
+   * @param {import("./Tile.js").Options} [opt_options] Tile options.
    */
 
 
@@ -51401,6 +52343,18 @@ function (_super) {
 
   ImageTile.prototype.getImage = function () {
     return this.image_;
+  };
+  /**
+   * Sets an HTML image element for this tile (may be a Canvas or preloaded Image).
+   * @param {HTMLCanvasElement|HTMLImageElement} element Element.
+   */
+
+
+  ImageTile.prototype.setImage = function (element) {
+    this.image_ = element;
+    this.state = _TileState.default.LOADED;
+    this.unlistenImage_();
+    this.changed();
   };
   /**
    * Tracks loading or read errors.
@@ -51538,8 +52492,8 @@ var _math = require("../math.js");
 /**
  * Single triangle; consists of 3 source points and 3 target points.
  * @typedef {Object} Triangle
- * @property {Array<import("../coordinate.js").Coordinate>} source
- * @property {Array<import("../coordinate.js").Coordinate>} target
+ * @property {Array<import("../coordinate.js").Coordinate>} source Source.
+ * @property {Array<import("../coordinate.js").Coordinate>} target Target.
  */
 
 /**
@@ -52089,6 +53043,12 @@ function calculateSourceExtentResolution(sourceProj, targetProj, targetExtent, t
   return sourceResolution;
 }
 /**
+ * @typedef {Object} ImageExtent
+ * @property {import("./extent.js").Extent} extent Extent.
+ * @property {HTMLCanvasElement|HTMLImageElement|HTMLVideoElement} image Image.
+ */
+
+/**
  * Renders the source data into new canvas based on the triangulation.
  *
  * @param {number} width Width of the canvas.
@@ -52098,14 +53058,11 @@ function calculateSourceExtentResolution(sourceProj, targetProj, targetExtent, t
  * @param {import("./extent.js").Extent} sourceExtent Extent of the data source.
  * @param {number} targetResolution Target resolution.
  * @param {import("./extent.js").Extent} targetExtent Target extent.
- * @param {import("./reproj/Triangulation.js").default} triangulation
- * Calculated triangulation.
- * @param {Array<{extent: import("./extent.js").Extent,
- *                 image: (HTMLCanvasElement|HTMLImageElement|HTMLVideoElement)}>} sources
- * Array of sources.
+ * @param {import("./reproj/Triangulation.js").default} triangulation Calculated triangulation.
+ * @param {Array<ImageExtent>} sources Array of sources.
  * @param {number} gutter Gutter of the sources.
- * @param {boolean=} opt_renderEdges Render reprojection edges.
- * @param {object=} opt_contextOptions Properties to set on the canvas context.
+ * @param {boolean} [opt_renderEdges] Render reprojection edges.
+ * @param {object} [opt_contextOptions] Properties to set on the canvas context.
  * @return {HTMLCanvasElement} Canvas with reprojected data.
  */
 
@@ -52302,6 +53259,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -52341,9 +53299,9 @@ function (_super) {
    * @param {number} gutter Gutter of the source tiles.
    * @param {FunctionType} getTileFunction
    *     Function returning source tiles (z, x, y, pixelRatio).
-   * @param {number=} opt_errorThreshold Acceptable reprojection error (in px).
-   * @param {boolean=} opt_renderEdges Render reprojection edges.
-   * @param {object=} opt_contextOptions Properties to set on the canvas context.
+   * @param {number} [opt_errorThreshold] Acceptable reprojection error (in px).
+   * @param {boolean} [opt_renderEdges] Render reprojection edges.
+   * @param {object} [opt_contextOptions] Properties to set on the canvas context.
    */
 
 
@@ -52574,16 +53532,17 @@ function (_super) {
           this.sourcesListenerKeys_.push(sourceListenKey_1);
         }
       }.bind(this));
-      this.sourceTiles_.forEach(function (tile, i, arr) {
-        var state = tile.getState();
-
-        if (state == _TileState.default.IDLE) {
-          tile.load();
-        }
-      });
 
       if (leftToLoad_1 === 0) {
         setTimeout(this.reproject_.bind(this), 0);
+      } else {
+        this.sourceTiles_.forEach(function (tile, i, arr) {
+          var state = tile.getState();
+
+          if (state == _TileState.default.IDLE) {
+            tile.load();
+          }
+        });
       }
     }
   };
@@ -52618,10 +53577,10 @@ var _asserts = require("../asserts.js");
 
 /**
  * @typedef {Object} Entry
- * @property {string} key_
- * @property {Object} newer
- * @property {Object} older
- * @property {*} value_
+ * @property {string} key_ Key.
+ * @property {Object} newer Newer.
+ * @property {Object} older Older.
+ * @property {*} value_ Value.
  */
 
 /**
@@ -52637,7 +53596,7 @@ var LRUCache =
 /** @class */
 function () {
   /**
-   * @param {number=} opt_highWaterMark High water mark.
+   * @param {number} [opt_highWaterMark] High water mark.
    */
   function LRUCache(opt_highWaterMark) {
     /**
@@ -52717,7 +53676,7 @@ function () {
   };
   /**
    * @param {string} key Key.
-   * @param {*=} opt_options Options (reserverd for subclasses).
+   * @param {*} [opt_options] Options (reserved for subclasses).
    * @return {T} Value.
    */
 
@@ -52931,6 +53890,7 @@ Object.defineProperty(exports, "__esModule", {
 exports.createOrUpdate = createOrUpdate;
 exports.getKeyZXY = getKeyZXY;
 exports.getKey = getKey;
+exports.getCacheKeyForTileKey = getCacheKeyForTileKey;
 exports.fromKey = fromKey;
 exports.hash = hash;
 exports.withinExtentAndZ = withinExtentAndZ;
@@ -52950,7 +53910,7 @@ exports.withinExtentAndZ = withinExtentAndZ;
  * @param {number} z Z.
  * @param {number} x X.
  * @param {number} y Y.
- * @param {TileCoord=} opt_tileCoord Tile coordinate.
+ * @param {TileCoord} [opt_tileCoord] Tile coordinate.
  * @return {TileCoord} Tile coordinate.
  */
 function createOrUpdate(z, x, y, opt_tileCoord) {
@@ -52983,6 +53943,21 @@ function getKeyZXY(z, x, y) {
 
 function getKey(tileCoord) {
   return getKeyZXY(tileCoord[0], tileCoord[1], tileCoord[2]);
+}
+/**
+ * Get the tile cache key for a tile key obtained through `tile.getKey()`.
+ * @param {string} tileKey The tile key.
+ * @return {string} The cache key.
+ */
+
+
+function getCacheKeyForTileKey(tileKey) {
+  var _a = tileKey.substring(tileKey.lastIndexOf('/') + 1, tileKey.length).split(',').map(Number),
+      z = _a[0],
+      x = _a[1],
+      y = _a[2];
+
+  return getKeyZXY(z, x, y);
 }
 /**
  * Get a tile coord given a key.
@@ -53055,6 +54030,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -53157,6 +54133,10 @@ var _default = {
    */
   TILELOADERROR: 'tileloaderror'
 };
+/**
+ * @typedef {'tileloadstart'|'tileloadend'|'tileloaderror'} TileSourceEventTypes
+ */
+
 exports.default = _default;
 },{}],"node_modules/ol/tilegrid/TileGrid.js":[function(require,module,exports) {
 "use strict";
@@ -53347,6 +54327,12 @@ function () {
      */
 
     this.tmpSize_ = [0, 0];
+    /**
+     * @private
+     * @type {import("../extent.js").Extent}
+     */
+
+    this.tmpExtent_ = [0, 0, 0, 0];
 
     if (options.sizes !== undefined) {
       this.fullTileRanges_ = options.sizes.map(function (size, z) {
@@ -53388,8 +54374,8 @@ function () {
   /**
    * @param {import("../tilecoord.js").TileCoord} tileCoord Tile coordinate.
    * @param {function(number, import("../TileRange.js").default): boolean} callback Callback.
-   * @param {import("../TileRange.js").default=} opt_tileRange Temporary import("../TileRange.js").default object.
-   * @param {import("../extent.js").Extent=} opt_extent Temporary import("../extent.js").Extent object.
+   * @param {import("../TileRange.js").default} [opt_tileRange] Temporary import("../TileRange.js").default object.
+   * @param {import("../extent.js").Extent} [opt_extent] Temporary import("../extent.js").Extent object.
    * @return {boolean} Callback succeeded.
    */
 
@@ -53492,8 +54478,8 @@ function () {
   };
   /**
    * @param {import("../tilecoord.js").TileCoord} tileCoord Tile coordinate.
-   * @param {import("../TileRange.js").default=} opt_tileRange Temporary import("../TileRange.js").default object.
-   * @param {import("../extent.js").Extent=} opt_extent Temporary import("../extent.js").Extent object.
+   * @param {import("../TileRange.js").default} [opt_tileRange] Temporary import("../TileRange.js").default object.
+   * @param {import("../extent.js").Extent} [opt_extent] Temporary import("../extent.js").Extent object.
    * @return {import("../TileRange.js").default} Tile range.
    */
 
@@ -53506,17 +54492,55 @@ function () {
         return (0, _TileRange.createOrUpdate)(minX, minX + 1, minY, minY + 1, opt_tileRange);
       }
 
-      var tileCoordExtent = this.getTileCoordExtent(tileCoord, opt_extent);
+      var tileCoordExtent = this.getTileCoordExtent(tileCoord, opt_extent || this.tmpExtent_);
       return this.getTileRangeForExtentAndZ(tileCoordExtent, tileCoord[0] + 1, opt_tileRange);
     }
 
     return null;
   };
   /**
+   * @param {import("../tilecoord.js").TileCoord} tileCoord Tile coordinate.
+   * @param {number} z Integer zoom level.
+   * @param {import("../TileRange.js").default} [opt_tileRange] Temporary import("../TileRange.js").default object.
+   * @return {import("../TileRange.js").default} Tile range.
+   */
+
+
+  TileGrid.prototype.getTileRangeForTileCoordAndZ = function (tileCoord, z, opt_tileRange) {
+    if (z > this.maxZoom || z < this.minZoom) {
+      return null;
+    }
+
+    var tileCoordZ = tileCoord[0];
+    var tileCoordX = tileCoord[1];
+    var tileCoordY = tileCoord[2];
+
+    if (z === tileCoordZ) {
+      return (0, _TileRange.createOrUpdate)(tileCoordX, tileCoordY, tileCoordX, tileCoordY, opt_tileRange);
+    }
+
+    if (this.zoomFactor_) {
+      var factor = Math.pow(this.zoomFactor_, z - tileCoordZ);
+      var minX = Math.floor(tileCoordX * factor);
+      var minY = Math.floor(tileCoordY * factor);
+
+      if (z < tileCoordZ) {
+        return (0, _TileRange.createOrUpdate)(minX, minX, minY, minY, opt_tileRange);
+      }
+
+      var maxX = Math.floor(factor * (tileCoordX + 1)) - 1;
+      var maxY = Math.floor(factor * (tileCoordY + 1)) - 1;
+      return (0, _TileRange.createOrUpdate)(minX, maxX, minY, maxY, opt_tileRange);
+    }
+
+    var tileCoordExtent = this.getTileCoordExtent(tileCoord, this.tmpExtent_);
+    return this.getTileRangeForExtentAndZ(tileCoordExtent, z, opt_tileRange);
+  };
+  /**
    * Get the extent for a tile range.
    * @param {number} z Integer zoom level.
    * @param {import("../TileRange.js").default} tileRange Tile range.
-   * @param {import("../extent.js").Extent=} opt_extent Temporary import("../extent.js").Extent object.
+   * @param {import("../extent.js").Extent} [opt_extent] Temporary import("../extent.js").Extent object.
    * @return {import("../extent.js").Extent} Extent.
    */
 
@@ -53535,7 +54559,7 @@ function () {
    * Get a tile range for the given extent and integer zoom level.
    * @param {import("../extent.js").Extent} extent Extent.
    * @param {number} z Integer zoom level.
-   * @param {import("../TileRange.js").default=} opt_tileRange Temporary tile range object.
+   * @param {import("../TileRange.js").default} [opt_tileRange] Temporary tile range object.
    * @return {import("../TileRange.js").default} Tile range.
    */
 
@@ -53564,7 +54588,7 @@ function () {
    * Get the extent of a tile coordinate.
    *
    * @param {import("../tilecoord.js").TileCoord} tileCoord Tile coordinate.
-   * @param {import("../extent.js").Extent=} opt_extent Temporary extent object.
+   * @param {import("../extent.js").Extent} [opt_extent] Temporary extent object.
    * @return {import("../extent.js").Extent} Extent.
    * @api
    */
@@ -53587,7 +54611,7 @@ function () {
    *
    * @param {import("../coordinate.js").Coordinate} coordinate Coordinate.
    * @param {number} resolution Resolution.
-   * @param {import("../tilecoord.js").TileCoord=} opt_tileCoord Destination import("../tilecoord.js").TileCoord object.
+   * @param {import("../tilecoord.js").TileCoord} [opt_tileCoord] Destination import("../tilecoord.js").TileCoord object.
    * @return {import("../tilecoord.js").TileCoord} Tile coordinate.
    * @api
    */
@@ -53605,7 +54629,7 @@ function () {
    * @param {boolean} reverseIntersectionPolicy Instead of letting edge
    *     intersections go to the higher tile coordinate, let edge intersections
    *     go to the lower tile coordinate.
-   * @param {import("../tilecoord.js").TileCoord=} opt_tileCoord Temporary import("../tilecoord.js").TileCoord object.
+   * @param {import("../tilecoord.js").TileCoord} [opt_tileCoord] Temporary import("../tilecoord.js").TileCoord object.
    * @return {import("../tilecoord.js").TileCoord} Tile coordinate.
    * @private
    */
@@ -53644,7 +54668,7 @@ function () {
    * @param {boolean} reverseIntersectionPolicy Instead of letting edge
    *     intersections go to the higher tile coordinate, let edge intersections
    *     go to the lower tile coordinate.
-   * @param {import("../tilecoord.js").TileCoord=} opt_tileCoord Temporary import("../tilecoord.js").TileCoord object.
+   * @param {import("../tilecoord.js").TileCoord} [opt_tileCoord] Temporary import("../tilecoord.js").TileCoord object.
    * @return {import("../tilecoord.js").TileCoord} Tile coordinate.
    * @private
    */
@@ -53675,7 +54699,7 @@ function () {
    * Get a tile coordinate given a map coordinate and zoom level.
    * @param {import("../coordinate.js").Coordinate} coordinate Coordinate.
    * @param {number} z Zoom level.
-   * @param {import("../tilecoord.js").TileCoord=} opt_tileCoord Destination import("../tilecoord.js").TileCoord object.
+   * @param {import("../tilecoord.js").TileCoord} [opt_tileCoord] Destination import("../tilecoord.js").TileCoord object.
    * @return {import("../tilecoord.js").TileCoord} Tile coordinate.
    * @api
    */
@@ -53725,9 +54749,18 @@ function () {
   };
   /**
    * @param {number} resolution Resolution.
-   * @param {number=} opt_direction If 0, the nearest resolution will be used.
-   *     If 1, the nearest lower resolution will be used. If -1, the nearest
-   *     higher resolution will be used. Default is 0.
+   * @param {number|import("../array.js").NearestDirectionFunction} [opt_direction]
+   *     If 0, the nearest resolution will be used.
+   *     If 1, the nearest higher resolution (lower Z) will be used. If -1, the
+   *     nearest lower resolution (higher Z) will be used. Default is 0.
+   *     Use a {@link module:ol/array~NearestDirectionFunction} for more precise control.
+   *
+   * For example to change tile Z at the midpoint of zoom levels
+   * ```js
+   * function(value, high, low) {
+   *   return value - low * Math.sqrt(high / low);
+   * }
+   * ```
    * @return {number} Z.
    * @api
    */
@@ -53831,11 +54864,11 @@ function wrapX(tileGrid, tileCoord, projection) {
 }
 /**
  * @param {import("./extent.js").Extent} extent Extent.
- * @param {number=} opt_maxZoom Maximum zoom level (default is
+ * @param {number} [opt_maxZoom] Maximum zoom level (default is
  *     DEFAULT_MAX_ZOOM).
- * @param {number|import("./size.js").Size=} opt_tileSize Tile size (default uses
+ * @param {number|import("./size.js").Size} [opt_tileSize] Tile size (default uses
  *     DEFAULT_TILE_SIZE).
- * @param {import("./extent/Corner.js").default=} opt_corner Extent corner (default is `'top-left'`).
+ * @param {import("./extent/Corner.js").default} [opt_corner] Extent corner (default is `'top-left'`).
  * @return {!TileGrid} TileGrid instance.
  */
 
@@ -53864,7 +54897,7 @@ function createForExtent(extent, opt_maxZoom, opt_tileSize, opt_corner) {
 
 /**
  * Creates a tile grid with a standard XYZ tiling scheme.
- * @param {XYZOptions=} opt_options Tile grid options.
+ * @param {XYZOptions} [opt_options] Tile grid options.
  * @return {!TileGrid} Tile grid instance.
  * @api
  */
@@ -53884,11 +54917,11 @@ function createXYZ(opt_options) {
 /**
  * Create a resolutions array from an extent.  A zoom factor of 2 is assumed.
  * @param {import("./extent.js").Extent} extent Extent.
- * @param {number=} opt_maxZoom Maximum zoom level (default is
+ * @param {number} [opt_maxZoom] Maximum zoom level (default is
  *     DEFAULT_MAX_ZOOM).
- * @param {number|import("./size.js").Size=} opt_tileSize Tile size (default uses
+ * @param {number|import("./size.js").Size} [opt_tileSize] Tile size (default uses
  *     DEFAULT_TILE_SIZE).
- * @param {number=} opt_maxResolution Resolution at level zero.
+ * @param {number} [opt_maxResolution] Resolution at level zero.
  * @return {!Array<number>} Resolutions array.
  */
 
@@ -53910,11 +54943,11 @@ function resolutionsFromExtent(extent, opt_maxZoom, opt_tileSize, opt_maxResolut
 }
 /**
  * @param {import("./proj.js").ProjectionLike} projection Projection.
- * @param {number=} opt_maxZoom Maximum zoom level (default is
+ * @param {number} [opt_maxZoom] Maximum zoom level (default is
  *     DEFAULT_MAX_ZOOM).
- * @param {number|import("./size.js").Size=} opt_tileSize Tile size (default uses
+ * @param {number|import("./size.js").Size} [opt_tileSize] Tile size (default uses
  *     DEFAULT_TILE_SIZE).
- * @param {import("./extent/Corner.js").default=} opt_corner Extent corner (default is `'top-left'`).
+ * @param {import("./extent/Corner.js").default} [opt_corner] Extent corner (default is `'top-left'`).
  * @return {!TileGrid} TileGrid instance.
  */
 
@@ -53986,6 +55019,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -54000,20 +55034,29 @@ var __extends = void 0 && (void 0).__extends || function () {
  */
 
 
+/***
+ * @template Return
+ * @typedef {import("../Observable").OnSignature<import("../Observable").EventTypes, import("../events/Event.js").default, Return> &
+ *   import("../Observable").OnSignature<import("../ObjectEventType").Types, import("../Object").ObjectEvent, Return> &
+ *   import("../Observable").OnSignature<import("./TileEventType").TileSourceEventTypes, TileSourceEvent, Return> &
+ *   import("../Observable").CombinedOnSignature<import("../Observable").EventTypes|import("../ObjectEventType").Types|
+ *     import("./TileEventType").TileSourceEventTypes, Return>} TileSourceOnSignature
+ */
+
 /**
  * @typedef {Object} Options
- * @property {import("./Source.js").AttributionLike} [attributions]
+ * @property {import("./Source.js").AttributionLike} [attributions] Attributions.
  * @property {boolean} [attributionsCollapsible=true] Attributions are collapsible.
- * @property {number} [cacheSize]
+ * @property {number} [cacheSize] CacheSize.
  * @property {boolean} [opaque=false] Whether the layer is opaque.
- * @property {number} [tilePixelRatio]
- * @property {import("../proj.js").ProjectionLike} [projection]
- * @property {import("./State.js").default} [state]
- * @property {import("../tilegrid/TileGrid.js").default} [tileGrid]
- * @property {boolean} [wrapX=true]
- * @property {number} [transition]
- * @property {string} [key]
- * @property {number} [zDirection=0]
+ * @property {number} [tilePixelRatio] TilePixelRatio.
+ * @property {import("../proj.js").ProjectionLike} [projection] Projection.
+ * @property {import("./State.js").default} [state] State.
+ * @property {import("../tilegrid/TileGrid.js").default} [tileGrid] TileGrid.
+ * @property {boolean} [wrapX=true] WrapX.
+ * @property {number} [transition] Transition.
+ * @property {string} [key] Key.
+ * @property {number|import("../array.js").NearestDirectionFunction} [zDirection=0] ZDirection.
  */
 
 /**
@@ -54041,11 +55084,26 @@ function (_super) {
       state: options.state,
       wrapX: options.wrapX
     }) || this;
+    /***
+     * @type {TileSourceOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+
+    _this.on;
+    /***
+     * @type {TileSourceOnSignature<import("../Observable.js").OnReturn>}
+     */
+
+    _this.once;
+    /***
+     * @type {TileSourceOnSignature<void>}
+     */
+
+    _this.un;
     /**
      * @private
      * @type {boolean}
      */
-
 
     _this.opaque_ = options.opaque !== undefined ? options.opaque : false;
     /**
@@ -54098,7 +55156,7 @@ function (_super) {
      * by a renderer if the views resolution does not match any resolution of the tile source.
      * If 0, the nearest resolution will be used. If 1, the nearest lower resolution
      * will be used. If -1, the nearest higher resolution will be used.
-     * @type {number}
+     * @type {number|import("../array.js").NearestDirectionFunction}
      */
 
     _this.zDirection = options.zDirection ? options.zDirection : 0;
@@ -54304,7 +55362,7 @@ function (_super) {
    * is outside the resolution and extent range of the tile grid, `null` will be
    * returned.
    * @param {import("../tilecoord.js").TileCoord} tileCoord Tile coordinate.
-   * @param {import("../proj/Projection.js").default=} opt_projection Projection.
+   * @param {import("../proj/Projection.js").default} [opt_projection] Projection.
    * @return {import("../tilecoord.js").TileCoord} Tile coordinate to be passed to the tileUrlFunction or
    *     null if no tile URL should be created for the passed `tileCoord`.
    */
@@ -54590,6 +55648,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -54606,22 +55665,22 @@ var __extends = void 0 && (void 0).__extends || function () {
 
 /**
  * @typedef {Object} Options
- * @property {import("./Source.js").AttributionLike} [attributions]
+ * @property {import("./Source.js").AttributionLike} [attributions] Attributions.
  * @property {boolean} [attributionsCollapsible=true] Attributions are collapsible.
- * @property {number} [cacheSize]
+ * @property {number} [cacheSize] Cache size.
  * @property {boolean} [opaque=false] Whether the layer is opaque.
- * @property {import("../proj.js").ProjectionLike} [projection]
- * @property {import("./State.js").default} [state]
- * @property {import("../tilegrid/TileGrid.js").default} [tileGrid]
- * @property {import("../Tile.js").LoadFunction} tileLoadFunction
- * @property {number} [tilePixelRatio]
- * @property {import("../Tile.js").UrlFunction} [tileUrlFunction]
- * @property {string} [url]
- * @property {Array<string>} [urls]
- * @property {boolean} [wrapX=true]
- * @property {number} [transition]
- * @property {string} [key]
- * @property {number} [zDirection=0]
+ * @property {import("../proj.js").ProjectionLike} [projection] Projection.
+ * @property {import("./State.js").default} [state] State.
+ * @property {import("../tilegrid/TileGrid.js").default} [tileGrid] TileGrid.
+ * @property {import("../Tile.js").LoadFunction} tileLoadFunction TileLoadFunction.
+ * @property {number} [tilePixelRatio] TilePixelRatio.
+ * @property {import("../Tile.js").UrlFunction} [tileUrlFunction] TileUrlFunction.
+ * @property {string} [url] Url.
+ * @property {Array<string>} [urls] Urls.
+ * @property {boolean} [wrapX=true] WrapX.
+ * @property {number} [transition] Transition.
+ * @property {string} [key] Key.
+ * @property {number|import("../array.js").NearestDirectionFunction} [zDirection=0] ZDirection.
  */
 
 /**
@@ -54767,7 +55826,7 @@ function (_super) {
   /**
    * Set the tile URL function of the source.
    * @param {import("../Tile.js").UrlFunction} tileUrlFunction Tile URL function.
-   * @param {string=} key Optional new tile key for the source.
+   * @param {string} [key] Optional new tile key for the source.
    * @api
    */
 
@@ -54891,6 +55950,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -54944,10 +56004,9 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @property {number} [transition] Duration of the opacity transition for rendering.
  * To disable the opacity transition, pass `transition: 0`.
  * @property {string} [key] Optional tile key for proper cache fetching
- * @property {number} [zDirection=0] Indicate which resolution should be used
- * by a renderer if the view resolution does not match any resolution of the tile source.
- * If 0, the nearest resolution will be used. If 1, the nearest lower resolution
- * will be used. If -1, the nearest higher resolution will be used.
+ * @property {number|import("../array.js").NearestDirectionFunction} [zDirection=0]
+ * Choose whether to use tiles with a higher or lower zoom level when between integer
+ * zoom levels. See {@link module:ol/tilegrid/TileGrid~TileGrid#getZForResolution}.
  */
 
 /**
@@ -55383,6 +56442,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -55432,10 +56492,9 @@ var __extends = void 0 && (void 0).__extends || function () {
  * @property {boolean} [wrapX=true] Whether to wrap the world horizontally.
  * @property {number} [transition=250] Duration of the opacity transition for rendering.
  * To disable the opacity transition, pass `transition: 0`.
- * @property {number} [zDirection=0] Indicate which resolution should be used
- * by a renderer if the view resolution does not match any resolution of the tile source.
- * If 0, the nearest resolution will be used. If 1, the nearest lower resolution
- * will be used. If -1, the nearest higher resolution will be used.
+ * @property {number|import("../array.js").NearestDirectionFunction} [zDirection=0]
+ * Choose whether to use tiles with a higher or lower zoom level when between integer
+ * zoom levels. See {@link module:ol/tilegrid/TileGrid~TileGrid#getZForResolution}.
  */
 
 /**
@@ -55460,7 +56519,7 @@ var XYZ =
 function (_super) {
   __extends(XYZ, _super);
   /**
-   * @param {Options=} opt_options XYZ options.
+   * @param {Options} [opt_options] XYZ options.
    */
 
 
@@ -55532,6 +56591,7 @@ var __extends = void 0 && (void 0).__extends || function () {
   };
 
   return function (d, b) {
+    if (typeof b !== "function" && b !== null) throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
     extendStatics(d, b);
 
     function __() {
@@ -55573,6 +56633,9 @@ var ATTRIBUTION = '&#169; ' + '<a href="https://www.openstreetmap.org/copyright"
  * @property {string} [url='https://{a-c}.tile.openstreetmap.org/{z}/{x}/{y}.png'] URL template.
  * Must include `{x}`, `{y}` or `{-y}`, and `{z}` placeholders.
  * @property {boolean} [wrapX=true] Whether to wrap the world horizontally.
+ * @property {number|import("../array.js").NearestDirectionFunction} [zDirection=0]
+ * Choose whether to use tiles with a higher or lower zoom level when between integer
+ * zoom levels. See {@link module:ol/tilegrid/TileGrid~TileGrid#getZForResolution}.
  */
 
 /**
@@ -55588,7 +56651,7 @@ var OSM =
 function (_super) {
   __extends(OSM, _super);
   /**
-   * @param {Options=} [opt_options] Open Street Map options.
+   * @param {Options} [opt_options] Open Street Map options.
    */
 
 
@@ -55618,7 +56681,8 @@ function (_super) {
       tileLoadFunction: options.tileLoadFunction,
       transition: options.transition,
       url: url,
-      wrapX: options.wrapX
+      wrapX: options.wrapX,
+      zDirection: options.zDirection
     }) || this;
     return _this;
   }
@@ -55685,12 +56749,12 @@ var _style = new _style2.Style({
 var form = document.querySelector("form");
 form.addEventListener("submit", function (event) {
   event.preventDefault();
-  var tjsUrl = document.querySelector("#api").value;
-  var frameworkData = document.querySelector("#framework").value;
-  var attributeData = document.querySelector("#attribute").value;
-  var frameworkKey = document.querySelector("#key").value;
-  var results = document.querySelector("#results");
-  var url = "".concat(tjsUrl, "FrameworkURI=").concat(frameworkData, "&GetDataURL=").concat(attributeData, "&FrameworkKey=").concat(frameworkKey);
+  var tjsUrl = document.querySelector("#apiurl").value;
+  var frameworkData = document.querySelector("#frameworkurl").value;
+  var attributeData = document.querySelector("#attributeurl").value;
+  var frameworkKey = document.querySelector("#frameworkkey").value;
+  var attributeKey = document.querySelector("#attributekey").value;
+  var url = "".concat(tjsUrl, "FrameworkURI=").concat(frameworkData, "&GetDataURL=").concat(attributeData, "&FrameworkKey=").concat(frameworkKey, "&AttributeKey=").concat(attributeKey);
   var vectorLayer = new _Vector.default({
     source: new _Vector2.default({
       url: "".concat(url),
@@ -55797,7 +56861,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "54461" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "50261" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
