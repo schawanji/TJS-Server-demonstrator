@@ -35,6 +35,13 @@ header label {
   margin: 0.5rem auto;
 }
 
+.preference {
+  display: flex;
+  width: 60%;
+  justify-content: start;
+  padding: 2rem 2rem;
+}
+
 @media (min-width: 1000px) {
   form {
     display: flex;
@@ -69,11 +76,15 @@ h1 {
 }
 header {
   font-weight: 700;
-  background: #F0EFF1;
+  background: #f0eff1;
 }
 .btn {
   color: ivory;
   background: #707070;
   margin-top: 1.25rem;
   text-align: center;
+  padding: 0.5rem 1rem;
+}
+.btn:hover {
+  opacity: 0.7;
 }
