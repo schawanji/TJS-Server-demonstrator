@@ -56707,7 +56707,7 @@ var _Vector2 = _interopRequireDefault(require("ol/source/Vector"));
 
 var _View = _interopRequireDefault(require("ol/View"));
 
-var _style2 = require("ol/style");
+var _style = require("ol/style");
 
 var _Tile = _interopRequireDefault(require("ol/layer/Tile"));
 
@@ -56728,27 +56728,6 @@ var map = new _Map.default({
     zoom: 3
   })
 });
-
-var _style = new _style2.Style({
-  fill: new _style2.Fill({
-    color: "rgba(255, 255, 255, 0.6)"
-  }),
-  stroke: new _style2.Stroke({
-    color: "#319FD3",
-    width: 1
-  }),
-  text: new _style2.Text({
-    font: "12px Calibri,sans-serif",
-    fill: new _style2.Fill({
-      color: "#000"
-    }),
-    stroke: new _style2.Stroke({
-      color: "#fff",
-      width: 3
-    })
-  })
-});
-
 var form = document.querySelector("form");
 form.addEventListener("submit", function (event) {
   event.preventDefault();
@@ -56759,16 +56738,57 @@ form.addEventListener("submit", function (event) {
   var attributeKey = document.querySelector("#attributekey").value;
   var layer = document.querySelector("#preference");
   var url = "".concat(tjsUrl, "FrameworkURI=").concat(frameworkData, "&GetDataURL=").concat(attributeData, "&FrameworkKey=").concat(frameworkKey, "&AttributeKey=").concat(attributeKey);
+  var colorGradient = ["rgb(128,128,128)", "rgb(140,81,10)", "rgb(216,179,101)", "rgb(246,232,195)", "rgb(199,234,229)", "rgb(90,180,172)", "rgb(1,102,94)"];
+
+  var gradStyle = function gradStyle(feature) {
+    var data = feature.get("cases");
+    var color;
+
+    if (data < 50000) {
+      color = colorGradient[6]; //low value
+    } else if (data >= 50000 && data < 500000) {
+      color = colorGradient[5]; //
+    } else if (data >= 500000 && data < 1000000) {
+      color = colorGradient[4];
+    } else if (data >= 1000000 && data < 3000000) {
+      color = colorGradient[3];
+    } else if (data >= 3000000 && data < 5000000) {
+      color = colorGradient[2];
+    } else if (data >= 5000000) {
+      color = colorGradient[1];
+    } else if (data = "null") {
+      color = colorGradient[0];
+    }
+
+    var style = new _style.Style({
+      fill: new _style.Fill({
+        color: color
+      }),
+      stroke: new _style.Stroke({
+        color: "#319FD3",
+        width: 1
+      }),
+      text: new _style.Text({
+        font: "12px Calibri,sans-serif",
+        fill: new _style.Fill({
+          color: "#000"
+        }),
+        stroke: new _style.Stroke({
+          color: "#fff",
+          width: 3
+        })
+      })
+    });
+    style.getText().setText(feature.get("name"));
+    return style;
+  };
+
   var vectorLayer = new _Vector.default({
     source: new _Vector2.default({
       url: "".concat(url),
       format: new _GeoJSON.default()
     }),
-    style: function style(feature) {
-      _style.getText().setText(feature.get("name"));
-
-      return _style;
-    }
+    style: gradStyle
   });
   map.addLayer(vectorLayer);
   layer.innerHTML = "<div class=\"preference\">\n  <input type=\"checkbox\" name=\"new-layer\" id=\"new-layer\" /><label\n    for=\"new-layer\"\n    >New Layer</label\n  >\n</div>";
@@ -56801,7 +56821,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "61946" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "60614" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
