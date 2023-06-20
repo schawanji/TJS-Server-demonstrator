@@ -12,6 +12,7 @@ Open Node.js
 cd C:\Users\[Name]\TJS-Server-demonstrator
 
 <pre>
+npm install  
 npm start
 </pre>
 
