@@ -56729,7 +56729,7 @@ var gradStyle = function gradStyle(feature) {
   var stateOptionElement = document.createElement('option');
   stateOptionElement.innerHTML = feature.get("name");
   form.appendChild(stateOptionElement);
-  var data = feature.get("density");
+  var data = feature.get("cases");
   var color;
 
   if (data < 5) {
@@ -56772,64 +56772,7 @@ var gradStyle = function gradStyle(feature) {
 };
 
 exports.gradStyle = gradStyle;
-var form = document.querySelector("form");
-form.addEventListener("submit", function (event) {
-  event.preventDefault();
-  var tjsUrl = document.querySelector("#apiurl").value;
-  var frameworkData = document.querySelector("#frameworkurl").value;
-  var attributeData = document.querySelector("#attributeurl").value;
-  var frameworkKey = document.querySelector("#frameworkkey").value;
-  var attributeKey = document.querySelector("#attributekey").value;
-  var layer = document.querySelector("#preference"); //const url = `${tjsUrl}FrameworkURI=${frameworkData}&GetDataURL=${attributeData}&FrameworkKey=${frameworkKey}&AttributeKey=${attributeKey}`;
-
-  map.addLayer(vectorLayer);
-  layer.innerHTML = "<div class=\"preference\">\n  <input type=\"checkbox\" name=\"new-layer\" id=\"new-layer\" /><label\n    for=\"new-layer\"\n    >New Layer</label\n  >\n</div>";
-});
-},{"ol/style":"node_modules/ol/style.js"}],"js/vectorlayers.js":[function(require,module,exports) {
-"use strict";
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
-exports.vectorLayer = void 0;
-
-var _GeoJSON = _interopRequireDefault(require("ol/format/GeoJSON"));
-
-var _Vector = _interopRequireDefault(require("ol/layer/Vector"));
-
-var _Vector2 = _interopRequireDefault(require("ol/source/Vector"));
-
-var _styles = require("./styles");
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
-
-var selected;
-
-var selectedStyle = function selectedStyle(feature) {
-  if (feature.get('name') === selected) {
-    return _styles.defaultStyle;
-  }
-
-  return (0, _styles.gradStyle)(feature);
-};
-
-var vectorLayer = new _Vector.default({
-  source: new _Vector2.default({
-    //url: `${url}`,
-    url: 'https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json',
-    format: new _GeoJSON.default()
-  }),
-  style: selectedStyle
-});
-exports.vectorLayer = vectorLayer;
-
-var handleChange = function handleChange(event) {
-  selected = event.target.value;
-  vectorLayer.changed();
-};
-
-document.getElementById('states').addEventListener('change', handleChange);
-},{"ol/format/GeoJSON":"node_modules/ol/format/GeoJSON.js","ol/layer/Vector":"node_modules/ol/layer/Vector.js","ol/source/Vector":"node_modules/ol/source/Vector.js","./styles":"js/styles.js"}],"map.js":[function(require,module,exports) {
+},{"ol/style":"node_modules/ol/style.js"}],"map.js":[function(require,module,exports) {
 "use strict";
 
 require("ol/ol.css");
@@ -56844,7 +56787,13 @@ var _OSM = _interopRequireDefault(require("ol/source/OSM"));
 
 var _control = require("ol/control");
 
-var _vectorlayers = require("./js/vectorlayers");
+var _GeoJSON = _interopRequireDefault(require("ol/format/GeoJSON"));
+
+var _Vector = _interopRequireDefault(require("ol/layer/Vector"));
+
+var _Vector2 = _interopRequireDefault(require("ol/source/Vector"));
+
+var _styles = require("./js/styles");
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
@@ -56852,14 +56801,53 @@ var map = new _Map.default({
   controls: (0, _control.defaults)().extend([new _control.FullScreen()]),
   layers: [new _Tile.default({
     source: new _OSM.default()
-  }), _vectorlayers.vectorLayer],
+  }) //vectorLayer
+  ],
   target: "map",
   view: new _View.default({
     center: [-9201767, 2922912],
     zoom: 4
   })
 });
-},{"ol/ol.css":"node_modules/ol/ol.css","ol/Map":"node_modules/ol/Map.js","ol/View":"node_modules/ol/View.js","ol/layer/Tile":"node_modules/ol/layer/Tile.js","ol/source/OSM":"node_modules/ol/source/OSM.js","ol/control":"node_modules/ol/control.js","./js/vectorlayers":"js/vectorlayers.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
+var form = document.querySelector("form");
+form.addEventListener("submit", function (event) {
+  event.preventDefault();
+  var tjsUrl = document.querySelector("#apiurl").value;
+  var frameworkData = document.querySelector("#frameworkurl").value;
+  var attributeData = document.querySelector("#attributeurl").value;
+  var frameworkKey = document.querySelector("#frameworkkey").value;
+  var attributeKey = document.querySelector("#attributekey").value;
+  var layer = document.querySelector("#preference");
+  var url = "".concat(tjsUrl, "FrameworkURI=").concat(frameworkData, "&GetDataURL=").concat(attributeData, "&FrameworkKey=").concat(frameworkKey, "&AttributeKey=").concat(attributeKey);
+  console.log(url);
+  var selected;
+
+  var selectedStyle = function selectedStyle(feature) {
+    if (feature.get('name') === selected) {
+      return _styles.defaultStyle;
+    }
+
+    return (0, _styles.gradStyle)(feature);
+  };
+
+  var vectorLayer = new _Vector.default({
+    source: new _Vector2.default({
+      url: "".concat(url),
+      //url: 'https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json',
+      format: new _GeoJSON.default()
+    }),
+    style: selectedStyle
+  });
+  map.addLayer(vectorLayer);
+
+  var handleChange = function handleChange(event) {
+    selected = event.target.value;
+    vectorLayer.changed();
+  };
+
+  document.getElementById('states').addEventListener('change', handleChange);
+});
+},{"ol/ol.css":"node_modules/ol/ol.css","ol/Map":"node_modules/ol/Map.js","ol/View":"node_modules/ol/View.js","ol/layer/Tile":"node_modules/ol/layer/Tile.js","ol/source/OSM":"node_modules/ol/source/OSM.js","ol/control":"node_modules/ol/control.js","ol/format/GeoJSON":"node_modules/ol/format/GeoJSON.js","ol/layer/Vector":"node_modules/ol/layer/Vector.js","ol/source/Vector":"node_modules/ol/source/Vector.js","./js/styles":"js/styles.js"}],"node_modules/parcel-bundler/src/builtins/hmr-runtime.js":[function(require,module,exports) {
 var global = arguments[3];
 var OVERLAY_ID = '__parcel__error__overlay__';
 var OldModule = module.bundle.Module;
@@ -56887,7 +56875,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36125" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "35885" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

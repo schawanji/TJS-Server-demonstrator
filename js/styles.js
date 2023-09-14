@@ -37,7 +37,7 @@ stateOptionElement.innerHTML=feature.get("name")
 form.appendChild(stateOptionElement)
 
 
-    var data = feature.get("density");
+    var data = feature.get("cases");
     var color;
     if (data < 5) {
       color = colorGradient[6]; //low value
@@ -76,31 +76,5 @@ form.appendChild(stateOptionElement)
     style.getText().setText(feature.get("name"));
     return style;
   };
-
-  const form = document.querySelector("form");
-
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
-
-  let tjsUrl = document.querySelector("#apiurl").value;
-  let frameworkData = document.querySelector("#frameworkurl").value;
-  let attributeData = document.querySelector("#attributeurl").value;
-  let frameworkKey = document.querySelector("#frameworkkey").value;
-  let attributeKey = document.querySelector("#attributekey").value;
-  let layer = document.querySelector("#preference");
-
-  //const url = `${tjsUrl}FrameworkURI=${frameworkData}&GetDataURL=${attributeData}&FrameworkKey=${frameworkKey}&AttributeKey=${attributeKey}`;
-
-
-  
-  map.addLayer(vectorLayer);
-  layer.innerHTML = `<div class="preference">
-  <input type="checkbox" name="new-layer" id="new-layer" /><label
-    for="new-layer"
-    >New Layer</label
-  >
-</div>`;
-});
-
 
 export {gradStyle,defaultStyle}
