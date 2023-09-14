@@ -13,31 +13,68 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/2.2.1/js/bootstrap.min.js"></script>
 
     <script src="https://kit.fontawesome.com/e140c5afeb.js" crossorigin="anonymous"></script>
-  <script src="/map.1d68ba0f.js"></script></head>
+  <script src="/map.1d68ba0f.js"></script><link rel="stylesheet" href="/map.27237bf4.css"></head>
   <body>
-    <div class="homepage">
-      <header><h1>Welcome to the TJS implentation demonstator</h1></header>
+    <header>
+      <div class="form">
+        <form id="join-form">
+          <div class="input-group mb-3">
+            <label for="apiurl">TJS API endpoint</label>
+            <input type="url" id="apiurl" name="apiurl" size="100" class="form-control" placeholder="Enter URL e.g (https://example.tjs/api)" pattern="https://.*" required="" value="https://schawanji.herokuapp.com/tjs/api/joindata?">
+          </div>
 
-      <button id="uploaddata">
-        <a href="/tjs-uploaddata.html">Would you like to upload data from local drive ?<br>
-          Click me</a>
-      </button>
+          <div class="input-group mb-3">
+            <label for="frameworkurl">FrameworkURI</label>
+            <input type="url" id="frameworkurl" name="frameworkurl" size="100" class="form-control" placeholder="Enter URL e.g (https://example.geojson)" pattern="https://.*" required="" value="https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json">
+          </div>
 
-      <button id="endpointdata">
-        <a href="/tjs-endpoint.html">Do you have your data hosted on a server ?<br>
-          Click me</a>
-      </button>
+          <div class="input-group input-attributes">
+            <label for="attributeurl">AttributeURI</label>
+            <input type="url" size="100" class="form-control" id="attributeurl" name="attributeurl" placeholder="Enter URL e.g (https://example.csv)" pattern="https://.*" required="" value="https://schawanji.herokuapp.com/static/covid_data.csv">
+            <!--div><h1>OR</h1></div>
 
-      <div class="credits">
-        To learn more how the TJS works see documentation from the
-        <a href="https://github.com/schawanji/TJS-Server">
-          TJS Github repository </a>. Here is the link to the
-        <a href="https://github.com/schawanji/TJS-Server-demonstrator">
-          TJS implentation demonstator</a>
-        Github repository.
+            <label for="csvfile">Upload CSV file</label>
+            <input type="file" id="csvfile" name="csvfile" /-->
+          </div>
+          <div class="input-group mb-3">
+            <label for="frameworkkey">FrameworkKey</label>
+            <input type="text" class="form-control" size="20" id="frameworkkey" name="frameworkkey" placeholder="Enter Framework Key" value="name">
+          </div>
+          <div class="input-group mb-3">
+            <label for="attributekey">AttributeKey</label>
+            <input type="text" class="form-control" size="20" id="attributekey" name="attributekey" placeholder="Enter Attribute Key" value="state">
+          </div>
+          <div class="input-group">
+            <input type="submit" id="addlayer" class="btn" value="Add Layer">
+          </div>
+        </form>
       </div>
-    </div>
+    </header>
+    <div class="container">
+      <main><div id="map"></div></main>
+      <aside>
+        <div class="layers"><h1>Layers</h1></div>
 
-    <script src="/TJS-Server-demonstrator.e31bb0bc.js"></script>
+        <div class="map-layers" id="map-layers">
+          <input type="checkbox" name="default" id="default"><label for="default">OpenStreet map</label>
+        </div>
+        <form id="select-state">
+          <label for="select-state">State : </label>
+          <select name="states" id="states">
+            <option value="">Select Value</option>
+          </select>
+        </form>
+      </aside>
+    </div>
+    <div class="credits">
+      To learn more how the TJS works see documentation from the
+      <a href="https://github.com/schawanji/TJS-Server">
+        TJS Github repository </a>. Here is the link to the
+      <a href="https://github.com/schawanji/TJS-Server-demonstrator">
+        TJS implentation demonstator</a>
+      Github repository.
+    </div>
+  
+    <script src="/map.27237bf4.js"></script>
   </body>
 </html>
