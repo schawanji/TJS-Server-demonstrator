@@ -56817,8 +56817,10 @@ form.addEventListener("submit", function (event) {
   var attributeData = document.querySelector("#attributeurl").value;
   var frameworkKey = document.querySelector("#frameworkkey").value;
   var attributeKey = document.querySelector("#attributekey").value;
-  var layer = document.querySelector("#preference");
-  var url = "".concat(tjsUrl, "FrameworkURI=").concat(frameworkData, "&GetDataURL=").concat(attributeData, "&FrameworkKey=").concat(frameworkKey, "&AttributeKey=").concat(attributeKey);
+  var layer = document.querySelector("#preference"); //const url = `${tjsUrl}FrameworkURI=${frameworkData}&GetDataURL=${attributeData}&FrameworkKey=${frameworkKey}&AttributeKey=${attributeKey}`;
+  //const url ='http://127.0.0.1:8000/tjs/api/joindata?FrameworkURI=https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json&GetDataURL=https://schawanji-tjs-server-demo.up.railway.app/static/covid_data.csv&FrameworkKey=name&AttributeKey=state'
+
+  var url = 'https://web-tjsenv.up.railway.app/tjs/api/joindata?FrameworkURI=https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json&GetDataURL=https://schawanji-tjs-server-demo.up.railway.app/static/covid_data.csv&FrameworkKey=name&AttributeKey=state';
   console.log(url);
   var selected;
 
@@ -56875,7 +56877,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "35885" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36233" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
