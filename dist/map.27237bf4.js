@@ -56729,20 +56729,20 @@ var gradStyle = function gradStyle(feature) {
   var stateOptionElement = document.createElement('option');
   stateOptionElement.innerHTML = feature.get("name");
   form.appendChild(stateOptionElement);
-  var data = feature.get("cases");
+  var data = feature.get("deaths");
   var color;
 
   if (data < 5) {
     color = colorGradient[6]; //low value
-  } else if (data >= 5 && data < 50) {
+  } else if (data >= 5 && data < 500) {
     color = colorGradient[5]; //
-  } else if (data >= 50 && data < 100) {
+  } else if (data >= 500 && data < 10000) {
     color = colorGradient[4];
-  } else if (data >= 100 && data < 300) {
+  } else if (data >= 10000 && data < 30000) {
     color = colorGradient[3];
-  } else if (data >= 300 && data < 500) {
+  } else if (data >= 30000 && data < 50000) {
     color = colorGradient[2];
-  } else if (data >= 500) {
+  } else if (data >= 50000) {
     color = colorGradient[1];
   } else if (data = "null") {
     color = colorGradient[0];
@@ -56817,15 +56817,19 @@ form.addEventListener("submit", function (event) {
   var attributeData = document.querySelector("#attributeurl").value;
   var frameworkKey = document.querySelector("#frameworkkey").value;
   var attributeKey = document.querySelector("#attributekey").value;
-  var layer = document.querySelector("#preference"); //const url = `${tjsUrl}FrameworkURI=${frameworkData}&GetDataURL=${attributeData}&FrameworkKey=${frameworkKey}&AttributeKey=${attributeKey}`;
-  //const url ='http://127.0.0.1:8000/tjs/api/joindata?FrameworkURI=https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json&GetDataURL=https://schawanji-tjs-server-demo.up.railway.app/static/covid_data.csv&FrameworkKey=name&AttributeKey=state'
+  var layer = document.querySelector("#preference");
+  var url = "".concat(tjsUrl, "FrameworkURI=").concat(frameworkData, "&GetDataURL=").concat(attributeData, "&FrameworkKey=").concat(frameworkKey, "&AttributeKey=").concat(attributeKey); //const url ='http://127.0.0.1:8000/tjs/api/joindata?FrameworkURI=https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json&GetDataURL=https://schawanji-tjs-server-demo.up.railway.app/static/covid_data.csv&FrameworkKey=name&AttributeKey=state'
+  //const url = 'https://web-tjsenv.up.railway.app/tjs/api/joindata?FrameworkURI=https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json&GetDataURL=https://schawanji-tjs-server-demo.up.railway.app/static/covid_data.csv&FrameworkKey=name&AttributeKey=state'
 
-  var url = 'https://web-tjsenv.up.railway.app/tjs/api/joindata?FrameworkURI=https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json&GetDataURL=https://schawanji-tjs-server-demo.up.railway.app/static/covid_data.csv&FrameworkKey=name&AttributeKey=state';
   console.log(url);
   var selected;
+  var cases;
+  var deaths;
 
   var selectedStyle = function selectedStyle(feature) {
     if (feature.get('name') === selected) {
+      cases = feature.get('cases');
+      deaths = feature.get('deaths');
       return _styles.defaultStyle;
     }
 
@@ -56845,6 +56849,10 @@ form.addEventListener("submit", function (event) {
   var handleChange = function handleChange(event) {
     selected = event.target.value;
     vectorLayer.changed();
+    console.log(event.target.value);
+    document.getElementById('states-name').innerHTML = 'State name: ' + event.target.value;
+    document.getElementById('states-cases').innerHTML = 'Number of cases: ' + cases;
+    document.getElementById('states-deaths').innerHTML = 'Number of death: ' + deaths;
   };
 
   document.getElementById('states').addEventListener('change', handleChange);
@@ -56877,7 +56885,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36233" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36391" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

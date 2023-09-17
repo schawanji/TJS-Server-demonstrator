@@ -37,19 +37,19 @@ stateOptionElement.innerHTML=feature.get("name")
 form.appendChild(stateOptionElement)
 
 
-    var data = feature.get("cases");
+    var data = feature.get("deaths");
     var color;
     if (data < 5) {
       color = colorGradient[6]; //low value
-    } else if (data >= 5 && data < 50) {
+    } else if (data >= 5 && data < 500) {
       color = colorGradient[5]; //
-    } else if (data >= 50 && data < 100) {
+    } else if (data >= 500 && data < 10000) {
       color = colorGradient[4];
-    } else if (data >= 100 && data < 300) {
+    } else if (data >= 10000 && data < 30000) {
       color = colorGradient[3];
-    } else if (data >= 300 && data < 500) {
+    } else if (data >= 30000 && data < 50000) {
       color = colorGradient[2];
-    } else if (data >= 500) {
+    } else if (data >= 50000) {
       color = colorGradient[1];
     } else if ((data = "null")) {
       color = colorGradient[0];

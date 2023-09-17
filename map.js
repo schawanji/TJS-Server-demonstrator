@@ -42,15 +42,19 @@ form.addEventListener("submit", (event) => {
   let attributeKey = document.querySelector("#attributekey").value;
   let layer = document.querySelector("#preference");
 
-//const url = `${tjsUrl}FrameworkURI=${frameworkData}&GetDataURL=${attributeData}&FrameworkKey=${frameworkKey}&AttributeKey=${attributeKey}`;
+const url = `${tjsUrl}FrameworkURI=${frameworkData}&GetDataURL=${attributeData}&FrameworkKey=${frameworkKey}&AttributeKey=${attributeKey}`;
 //const url ='http://127.0.0.1:8000/tjs/api/joindata?FrameworkURI=https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json&GetDataURL=https://schawanji-tjs-server-demo.up.railway.app/static/covid_data.csv&FrameworkKey=name&AttributeKey=state'
-const url = 'https://web-tjsenv.up.railway.app/tjs/api/joindata?FrameworkURI=https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json&GetDataURL=https://schawanji-tjs-server-demo.up.railway.app/static/covid_data.csv&FrameworkKey=name&AttributeKey=state'
+//const url = 'https://web-tjsenv.up.railway.app/tjs/api/joindata?FrameworkURI=https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json&GetDataURL=https://schawanji-tjs-server-demo.up.railway.app/static/covid_data.csv&FrameworkKey=name&AttributeKey=state'
 
 console.log(url)
   let selected;
+  let cases
+  let deaths
   const selectedStyle = (feature)=>{
   
       if(feature.get('name')===selected){
+       cases= feature.get('cases')
+      deaths=  feature.get('deaths')
   return defaultStyle
       }
   
@@ -72,10 +76,15 @@ console.log(url)
   const handleChange =(event)=>{
   selected= event.target.value
   vectorLayer.changed()
+  console.log(event.target.value)
+  document.getElementById('states-name').innerHTML='State name: '+event.target.value
+  document.getElementById('states-cases').innerHTML='Number of cases: '+cases
+  document.getElementById('states-deaths').innerHTML='Number of death: '+ deaths
   
   }
   
   document.getElementById('states').addEventListener('change', handleChange)
+  
 
   
   

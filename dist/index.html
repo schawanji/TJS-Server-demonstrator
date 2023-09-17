@@ -3,10 +3,7 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-    <!--link
-      rel="stylesheet"
-      href="https://maxcdn.bootstrapcdn.com/bootstrap/2.2.1/css/bootstrap.min.css"
-    /-->
+   
 
     <link rel="stylesheet" href="/map.1d68ba0f.css">
     <script src="https://code.jquery.com/jquery-latest.js"></script>
@@ -53,18 +50,31 @@
     <div class="container">
       <main><div id="map"></div></main>
       <aside>
-        <div class="layers"><h1>Layers</h1></div>
-
-        <div class="map-layers" id="map-layers">
-          <input type="checkbox" name="default" id="default"><label for="default">OpenStreet map</label>
-        </div>
-        <form id="select-state">
-          <label for="select-state">State : </label>
-          <select name="states" id="states">
-            <option value="">Select Value</option>
-          </select>
-        </form>
-      </aside>
+        <section class="layers">
+            <h1>Layers</h1>
+        </section>
+    
+        <section class="map-layers" id="map-layers">
+            <!-- Add checkboxes or layers here if needed -->
+        </section>
+    
+        <section>
+            <p>USA Covid-19 Data Source: <a href="https://raw.githubusercontent.com/nytimes/covid-19-data/6a6a67340325c354e9ee4890816718391b47d9ac/us-states.csv">NY Times</a></p>
+            <form id="select-state">
+                <label for="states">State:</label>
+                <select name="states" id="states">
+                    <option value="">Select Value</option>
+                </select>
+            </form>
+        </section>
+    
+        <section class="info">
+            <div id="states-name"></div>
+            <div id="states-cases"></div>
+            <div id="states-deaths"></div>
+        </section>
+    </aside>
+    
     </div>
     <div class="credits">
       To learn more how the TJS works see documentation from the
