@@ -43,8 +43,7 @@ form.addEventListener("submit", (event) => {
   let layer = document.querySelector("#preference");
 
   //const url = `https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json`;  
-  const url = `http://localhost:5001/tjs/api/joindata?FrameworkURI=http://localhost:8081/geoserver/osm/ows?service=WFS&version=1.0.0&request=GetFeature&typeName=osm%3Aus-states&maxFeatures=50&outputFormat=application%2Fjson&layer=osm:us-states&GetDataURL=https://raw.githubusercontent.com/schawanji/TJS-Server/refs/heads/main/static/covid_data.csv&FrameworkKey=name&AttributeKey=state`;  
-//const url = `${tjsUrl}FrameworkURI=${frameworkData}&GetDataURL=${attributeData}&FrameworkKey=${frameworkKey}&AttributeKey=${attributeKey}`;
+  const url = `${tjsUrl}FrameworkURI=${frameworkData}&GetDataURL=${attributeData}&FrameworkKey=${frameworkKey}&AttributeKey=${attributeKey}`;
 //const url ='http://127.0.0.1:8000/tjs/api/joindata?FrameworkURI=https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json&GetDataURL=https://schawanji-tjs-server-demo.up.railway.app/static/covid_data.csv&FrameworkKey=name&AttributeKey=state'
 //const url = 'https://web-tjsenv.up.railway.app/tjs/api/joindata?FrameworkURI=https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json&GetDataURL=https://schawanji-tjs-server-demo.up.railway.app/static/covid_data.csv&FrameworkKey=name&AttributeKey=state'
 
